@@ -523,10 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initSocket(name, onConn) {
-    socket = io({
-      path: '/api/socket',
-      transports: ['websocket', 'polling']
-    });
+    socket = io;
     socket.on("connect", () => { myId = socket.id; myName = name; onConn(); });
     socket.on("connect_error", () => setErr("❌ Cannot connect to server. Make sure it's deployed."));
     socket.on("disconnect", () => toast("⚠️ Disconnected from server"));
