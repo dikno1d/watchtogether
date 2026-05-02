@@ -7,8 +7,6 @@
 <meta name="theme-color" content="#0a0a0f"/>
 <title>Universal Watch Party 🎬</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<script src="https://www.youtube.com/iframe_api"></script>
-<script src="https://player.vimeo.com/api/player.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -25,8 +23,6 @@
     --success: #10b981;
     --danger: #ef4444;
     --header-height: 56px;
-    --sidebar-width: 280px;
-    --sidebar-width-mobile: 100%;
   }
   
   body {
@@ -306,6 +302,11 @@
     background: var(--accent2);
   }
   
+  .url-bar button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
   .detected-platform {
     padding: 8px 16px;
     background: var(--sur2);
@@ -339,11 +340,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-  
-  #youtube-player, #vimeo-player {
-    width: 100%;
-    height: 100%;
   }
   
   iframe {
@@ -471,7 +467,7 @@
   
   /* Sidebar - Chat */
   .sidebar {
-    width: var(--sidebar-width);
+    width: 280px;
     background: var(--surface);
     border-left: 1px solid var(--border);
     display: flex;
@@ -880,7 +876,7 @@
       <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
       <div class="sync-status">
         <div class="sync-dot"></div>
-        <span id="syncText">Synced</span>
+        <span id="syncText">Ready</span>
       </div>
     </div>
     <span class="member-count" id="memberCount">0/20 members</span>
@@ -889,7 +885,7 @@
   <div class="main">
     <div class="video-panel">
       <div class="url-bar" id="hostControls">
-        <input type="text" id="videoUrl" placeholder="Paste any video URL (YouTube, Vimeo, Twitch, etc.)">
+        <input type="text" id="videoUrl" placeholder="Paste any video URL (YouTube, Vimeo, Twitch, TikTok, etc.)">
         <button id="loadVideoBtn">🎬 Load Video</button>
       </div>
       <div class="url-bar" id="guestControls" style="display: none;">
@@ -903,15 +899,13 @@
       
       <div class="player-container" id="playerContainer">
         <div class="player-wrapper" id="playerWrapper">
-          <div id="youtube-player" style="display: none;"></div>
-          <div id="vimeo-player" style="display: none;"></div>
-          <div id="generic-player" style="display: none;"></div>
+          <iframe id="videoFrame" style="width:100%; height:100%; border:none; display:none;"></iframe>
         </div>
         <div class="placeholder" id="placeholder">
           <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
           <p>No video loaded</p>
           <p style="font-size: 12px; margin-top: 8px;">Host: Paste any video URL and click Load</p>
-          <p style="font-size: 11px; margin-top: 6px; color: var(--muted);">Supports: YouTube, Vimeo, Dailymotion, Twitch, Facebook, TikTok, Twitter/X, Instagram, Reddit, MP4, and more!</p>
+          <p style="font-size: 11px; margin-top: 6px; color: var(--muted);">Supports: YouTube, Vimeo, Dailymotion, Twitch, TikTok, Facebook, Twitter, Instagram, MP4, and more!</p>
         </div>
       </div>
       
@@ -956,16 +950,11 @@ let roomId;
 let isHost = false;
 let currentPlatform = null;
 let currentVideoUrl = null;
-let currentPlayer = null;
-let currentIframe = null;
 let playerReady = false;
 let isSeeking = false;
-let currentTime = 0;
-let duration = 0;
-let forceSyncInterval;
 
 // Helper functions
-function showToast(msg, duration = 2000) {
+function showToast(msg, duration = 3000) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -983,96 +972,148 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Universal video platform detection
+// Extract YouTube ID from any YouTube URL (including m.youtube.com)
+function extractYouTubeId(url) {
+  const urlLower = url.toLowerCase();
+  
+  // Handle youtu.be format
+  let match = url.match(/youtu\.be\/([^?&]+)/);
+  if (match) return match[1];
+  
+  // Handle youtube.com/watch?v=
+  match = url.match(/[?&]v=([^&]+)/);
+  if (match) return match[1];
+  
+  // Handle youtube.com/embed/
+  match = url.match(/\/embed\/([^?&]+)/);
+  if (match) return match[1];
+  
+  // Handle m.youtube.com
+  match = url.match(/m\.youtube\.com\/watch\?v=([^&]+)/);
+  if (match) return match[1];
+  
+  // Handle youtu.be with parameters
+  match = url.match(/youtu\.be\/([^?]+)/);
+  if (match) return match[1];
+  
+  return null;
+}
+
+// Detect video platform from URL
 function detectVideoPlatform(url) {
   if (!url) return null;
-  url = url.toLowerCase();
+  const urlLower = url.toLowerCase();
   
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return { platform: 'youtube', embedUrl: getYouTubeEmbedUrl(url) };
-  }
-  if (url.includes('vimeo.com')) {
-    return { platform: 'vimeo', embedUrl: getVimeoEmbedUrl(url) };
-  }
-  if (url.includes('dailymotion.com')) {
-    return { platform: 'dailymotion', embedUrl: getDailymotionEmbedUrl(url) };
-  }
-  if (url.includes('twitch.tv')) {
-    return { platform: 'twitch', embedUrl: getTwitchEmbedUrl(url) };
-  }
-  if (url.includes('facebook.com') || url.includes('fb.watch')) {
-    return { platform: 'facebook', embedUrl: url };
-  }
-  if (url.includes('tiktok.com')) {
-    return { platform: 'tiktok', embedUrl: url };
-  }
-  if (url.includes('twitter.com') || url.includes('x.com')) {
-    return { platform: 'twitter', embedUrl: url };
-  }
-  if (url.includes('instagram.com')) {
-    return { platform: 'instagram', embedUrl: url };
-  }
-  if (url.includes('reddit.com')) {
-    return { platform: 'reddit', embedUrl: url };
-  }
-  if (url.match(/\.(mp4|webm|ogg|mov|mkv)(\?|$)/i)) {
-    return { platform: 'direct', embedUrl: url };
-  }
-  
-  return { platform: 'generic', embedUrl: url };
-}
-
-function getYouTubeEmbedUrl(url) {
-  let videoId = null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/,
-    /youtube\.com\/embed\/([^?]+)/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      videoId = match[1];
-      break;
+  // YouTube (including m.youtube.com)
+  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
+    const videoId = extractYouTubeId(url);
+    if (videoId) {
+      return {
+        platform: 'youtube',
+        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0&autoplay=0`,
+        videoId: videoId
+      };
     }
   }
-  return videoId ? `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=0&modestbranding=1&rel=0` : url;
+  
+  // Vimeo
+  if (urlLower.includes('vimeo.com')) {
+    const match = url.match(/vimeo\.com\/(\d+)/);
+    if (match) {
+      return {
+        platform: 'vimeo',
+        embedUrl: `https://player.vimeo.com/video/${match[1]}?autoplay=0`,
+        videoId: match[1]
+      };
+    }
+  }
+  
+  // Dailymotion
+  if (urlLower.includes('dailymotion.com')) {
+    const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
+    if (match) {
+      return {
+        platform: 'dailymotion',
+        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`,
+        videoId: match[1]
+      };
+    }
+  }
+  
+  // Twitch
+  if (urlLower.includes('twitch.tv')) {
+    const match = url.match(/twitch\.tv\/([^\/?]+)/);
+    if (match) {
+      return {
+        platform: 'twitch',
+        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${window.location.hostname}&autoplay=false`,
+        videoId: match[1]
+      };
+    }
+  }
+  
+  // TikTok
+  if (urlLower.includes('tiktok.com')) {
+    return {
+      platform: 'tiktok',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Facebook
+  if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch')) {
+    return {
+      platform: 'facebook',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Twitter/X
+  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
+    return {
+      platform: 'twitter',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Instagram
+  if (urlLower.includes('instagram.com')) {
+    return {
+      platform: 'instagram',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Direct video files
+  if (url.match(/\.(mp4|webm|ogg|mov|mkv|avi)(\?|$)/i)) {
+    return {
+      platform: 'direct',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Generic
+  return {
+    platform: 'generic',
+    embedUrl: url,
+    videoId: null
+  };
 }
 
-function getVimeoEmbedUrl(url) {
-  const match = url.match(/vimeo\.com\/(\d+)/);
-  return match ? `https://player.vimeo.com/video/${match[1]}` : url;
-}
-
-function getDailymotionEmbedUrl(url) {
-  const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
-  return match ? `https://www.dailymotion.com/embed/video/${match[1]}` : url;
-}
-
-function getTwitchEmbedUrl(url) {
-  const match = url.match(/twitch\.tv\/([^\/?]+)/);
-  return match ? `https://player.twitch.tv/?channel=${match[1]}&parent=${window.location.hostname}` : url;
-}
-
-// Render video based on platform
-function renderVideo(videoUrl, platform, startTime = 0, autoPlay = false) {
-  const youtubeDiv = document.getElementById('youtube-player');
-  const vimeoDiv = document.getElementById('vimeo-player');
-  const genericDiv = document.getElementById('generic-player');
+// Render video
+function renderVideo(videoUrl, platform) {
+  const iframe = document.getElementById('videoFrame');
   const placeholder = document.getElementById('placeholder');
   const detectedPlatform = document.getElementById('detectedPlatform');
   const platformName = document.getElementById('platformName');
   
-  // Hide all players
-  youtubeDiv.style.display = 'none';
-  vimeoDiv.style.display = 'none';
-  genericDiv.style.display = 'none';
+  if (!videoUrl) return false;
   
-  // Clear existing content
-  if (genericDiv) genericDiv.innerHTML = '';
-  if (youtubeDiv) youtubeDiv.innerHTML = '';
-  if (vimeoDiv) vimeoDiv.innerHTML = '';
-  
-  playerReady = false;
   placeholder.style.display = 'none';
   detectedPlatform.style.display = 'flex';
   platformName.textContent = platform.toUpperCase();
@@ -1080,53 +1121,25 @@ function renderVideo(videoUrl, platform, startTime = 0, autoPlay = false) {
   currentPlatform = platform;
   currentVideoUrl = videoUrl;
   
-  try {
-    switch(platform) {
-      case 'youtube':
-        youtubeDiv.style.display = 'block';
-        youtubeDiv.innerHTML = '';
-        currentIframe = document.createElement('iframe');
-        currentIframe.src = videoUrl + (startTime > 0 ? `&start=${Math.floor(startTime)}` : '') + (autoPlay ? '&autoplay=1' : '');
-        currentIframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-        currentIframe.allowFullscreen = true;
-        youtubeDiv.appendChild(currentIframe);
-        currentPlayer = currentIframe;
-        setTimeout(() => { playerReady = true; }, 1000);
-        break;
-        
-      case 'vimeo':
-        vimeoDiv.style.display = 'block';
-        currentIframe = document.createElement('iframe');
-        currentIframe.src = videoUrl + (startTime > 0 ? `#t=${startTime}` : '');
-        currentIframe.allow = 'autoplay; fullscreen';
-        currentIframe.allowFullscreen = true;
-        vimeoDiv.appendChild(currentIframe);
-        currentPlayer = currentIframe;
-        setTimeout(() => { playerReady = true; }, 1000);
-        break;
-        
-      default:
-        genericDiv.style.display = 'block';
-        currentIframe = document.createElement('iframe');
-        currentIframe.src = videoUrl;
-        currentIframe.allow = 'autoplay; fullscreen; picture-in-picture';
-        currentIframe.allowFullscreen = true;
-        currentIframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms';
-        genericDiv.appendChild(currentIframe);
-        currentPlayer = currentIframe;
-        setTimeout(() => { playerReady = true; }, 1000);
-        break;
-    }
-    
-    showToast(`✅ Loaded: ${platform.toUpperCase()}`);
-    document.getElementById('syncText').textContent = 'Ready';
-    
-  } catch (error) {
-    console.error('Render error:', error);
-    showToast('❌ Failed to load video');
+  // Set iframe source
+  iframe.style.display = 'block';
+  iframe.src = videoUrl;
+  
+  // Add sandbox attributes for security but allow necessary features
+  iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-presentation');
+  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+  iframe.setAttribute('allowfullscreen', 'true');
+  
+  showToast(`✅ Loaded: ${platform.toUpperCase()}`);
+  playerReady = true;
+  
+  // Add load error handler
+  iframe.onerror = () => {
+    showToast(`⚠️ Could not load ${platform} video. Try a different link.`);
     placeholder.style.display = 'flex';
-    return false;
-  }
+    iframe.style.display = 'none';
+  };
+  
   return true;
 }
 
@@ -1170,13 +1183,11 @@ function initSocket(name, callback) {
   
   socket.on('video_loaded', ({ videoUrl, videoPlatform, currentTime, isPlaying }) => {
     if (videoUrl && currentVideoUrl !== videoUrl) {
-      renderVideo(videoUrl, videoPlatform, currentTime, isPlaying);
+      renderVideo(videoUrl, videoPlatform);
     }
   });
   
   socket.on('video_play', ({ currentTime }) => {
-    // For iframe-based players, we can't control programmatically
-    // Just show notification
     if (!isHost) {
       showToast('▶️ Host started playing', 1000);
       document.getElementById('syncText').textContent = 'Playing';
@@ -1205,6 +1216,7 @@ function updateUI() {
   const hostBadge = document.getElementById('hostBadge');
   const playPauseBtn = document.getElementById('playPauseBtn');
   const seekBar = document.getElementById('seekBar');
+  const loadBtn = document.getElementById('loadVideoBtn');
   
   if (isHost) {
     hostControls.style.display = 'flex';
@@ -1212,12 +1224,14 @@ function updateUI() {
     hostBadge.style.display = 'inline-block';
     playPauseBtn.disabled = false;
     seekBar.disabled = false;
+    if (loadBtn) loadBtn.disabled = false;
   } else {
     hostControls.style.display = 'none';
     guestControls.style.display = 'flex';
     hostBadge.style.display = 'none';
     playPauseBtn.disabled = true;
     seekBar.disabled = true;
+    if (loadBtn) loadBtn.disabled = true;
   }
 }
 
@@ -1358,13 +1372,12 @@ function enterApp(info) {
   }
   
   if (info.videoUrl) {
-    currentVideoUrl = info.videoUrl;
-    renderVideo(info.videoUrl, info.videoPlatform || 'youtube', info.currentTime, info.isPlaying);
+    renderVideo(info.videoUrl, info.videoPlatform || 'generic');
   }
 }
 
 // Load video (host only)
-function loadVideo() {
+async function loadVideo() {
   if (!isHost) return;
   
   const url = document.getElementById('videoUrl').value.trim();
@@ -1374,6 +1387,8 @@ function loadVideo() {
   }
   
   showToast('🔍 Detecting video source...');
+  
+  // Detect platform
   const detected = detectVideoPlatform(url);
   
   if (!detected) {
@@ -1381,16 +1396,24 @@ function loadVideo() {
     return;
   }
   
-  showToast(`📡 Loading from ${detected.platform}...`);
+  showToast(`📡 Loading from ${detected.platform.toUpperCase()}...`);
+  
+  // Test render locally first
+  const testRender = renderVideo(detected.embedUrl, detected.platform);
+  if (!testRender) {
+    showToast('❌ Failed to load video preview');
+    return;
+  }
+  
+  // Send to server
   socket.emit('load_video', { 
     videoUrl: detected.embedUrl, 
     videoPlatform: detected.platform 
   }, (res) => {
     if (res.success) {
       showToast(`✅ Video loaded! (${detected.platform.toUpperCase()})`);
-      renderVideo(detected.embedUrl, detected.platform, 0, false);
     } else {
-      showToast('❌ Failed to load video');
+      showToast('❌ Failed to load video for others');
     }
   });
 }
@@ -1407,11 +1430,14 @@ function toggleFullscreen() {
   }
 }
 
-// UI Updates
+// Update time display (for non-iframe videos)
 function updateTimeDisplay() {
-  // For iframe players, we can't get current time
-  // Just show placeholder
-  document.getElementById('timeDisplay').textContent = '0:00 / 0:00';
+  // For iframe players, we can't get current time accurately
+  // Just show a message
+  const timeSpan = document.getElementById('timeDisplay');
+  if (currentPlatform !== 'direct') {
+    timeSpan.textContent = 'Use player controls';
+  }
 }
 
 // Event listeners
@@ -1447,14 +1473,13 @@ document.getElementById('videoUrl').addEventListener('keypress', (e) => {
 
 document.getElementById('playPauseBtn').addEventListener('click', () => {
   if (!isHost) return;
-  showToast('For iframe videos, use the video player controls', 2000);
+  showToast('For embedded videos, use the video player controls', 2000);
 });
 
 document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
 
 document.getElementById('volumeSlider').addEventListener('input', (e) => {
-  // Volume control for iframe is not possible
-  // Just store preference
+  // Volume control for iframe is limited
   localStorage.setItem('volume', e.target.value);
 });
 
