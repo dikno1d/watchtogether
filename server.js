@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
-  pingInterval: 1000,
+  pingInterval: 2000,
   pingTimeout: 5000,
   transports: ['websocket', 'polling']
 });
@@ -18,67 +18,6 @@ app.use(express.json());
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
-
-function extractYouTubeId(url) {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|m\.youtube\.com\/watch\?v=)([^&?#]+)/,
-    /youtube\.com\/shorts\/([^?&]+)/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
-
-function getEmbedUrl(url) {
-  const urlLower = url.toLowerCase();
-  
-  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
-    const videoId = extractYouTubeId(url);
-    if (videoId) {
-      return {
-        platform: 'youtube',
-        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0`
-      };
-    }
-  }
-  
-  if (urlLower.includes('vimeo.com')) {
-    const match = url.match(/vimeo\.com\/(\d+)/);
-    if (match) {
-      return {
-        platform: 'vimeo',
-        embedUrl: `https://player.vimeo.com/video/${match[1]}`
-      };
-    }
-  }
-  
-  if (urlLower.includes('dailymotion.com')) {
-    const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
-    if (match) {
-      return {
-        platform: 'dailymotion',
-        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`
-      };
-    }
-  }
-  
-  if (urlLower.includes('twitch.tv')) {
-    const match = url.match(/twitch\.tv\/([^\/?]+)/);
-    if (match) {
-      return {
-        platform: 'twitch',
-        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${process.env.DOMAIN || 'localhost'}`
-      };
-    }
-  }
-  
-  return {
-    platform: 'generic',
-    embedUrl: url
-  };
-}
 
 const rooms = {};
 const COLORS = [
@@ -100,8 +39,7 @@ function roomInfo(roomId) {
     members: Array.from(room.members.entries()).map(([id, d]) => ({
       id, name: d.name, color: d.color,
     })),
-    videoUrl: room.videoUrl,
-    videoPlatform: room.videoPlatform,
+    videoId: room.videoId,
     isPlaying: room.isPlaying,
     currentTime: room.currentTime
   };
@@ -117,8 +55,7 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
-      videoUrl: null,
-      videoPlatform: null,
+      videoId: null,
       isPlaying: false,
       currentTime: 0,
       lastUpdate: Date.now()
@@ -161,30 +98,37 @@ io.on("connection", (socket) => {
       text: `✨ ${name} joined the room`,
       ts: Date.now()
     });
+    
+    // Send current video state to new member
+    if (room.videoId) {
+      socket.emit("video_state", {
+        videoId: room.videoId,
+        currentTime: room.currentTime,
+        isPlaying: room.isPlaying
+      });
+    }
   });
 
-  socket.on("load_video", ({ videoUrl, videoPlatform }, cb) => {
+  socket.on("load_video", ({ videoId }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.videoUrl = videoUrl;
-    room.videoPlatform = videoPlatform;
+    room.videoId = videoId;
     room.isPlaying = false;
     room.currentTime = 0;
     room.lastUpdate = Date.now();
     
     io.to(socket.data.roomId).emit("video_loaded", {
-      videoUrl: videoUrl,
-      videoPlatform: videoPlatform,
+      videoId: videoId,
       currentTime: 0,
       isPlaying: false
     });
     
     cb({ success: true });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoPlatform}`);
+    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoId}`);
   });
 
-  socket.on("play_video", ({ currentTime }) => {
+  socket.on("play_video", ({ currentTime, requestId }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
@@ -192,10 +136,14 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    io.to(socket.data.roomId).emit("video_play", { currentTime });
+    io.to(socket.data.roomId).emit("video_play", { 
+      currentTime, 
+      timestamp: Date.now(),
+      requestId 
+    });
   });
 
-  socket.on("pause_video", ({ currentTime }) => {
+  socket.on("pause_video", ({ currentTime, requestId }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
@@ -203,17 +151,37 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    io.to(socket.data.roomId).emit("video_pause", { currentTime });
+    io.to(socket.data.roomId).emit("video_pause", { 
+      currentTime, 
+      timestamp: Date.now(),
+      requestId 
+    });
   });
 
-  socket.on("seek_video", ({ currentTime }) => {
+  socket.on("seek_video", ({ currentTime, requestId }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    io.to(socket.data.roomId).emit("video_seek", { currentTime });
+    io.to(socket.data.roomId).emit("video_seek", { 
+      currentTime, 
+      timestamp: Date.now(),
+      requestId 
+    });
+  });
+
+  socket.on("sync_request", ({ currentTime }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    
+    socket.emit("sync_response", {
+      videoId: room.videoId,
+      isPlaying: room.isPlaying,
+      currentTime: room.currentTime,
+      timestamp: Date.now()
+    });
   });
 
   socket.on("chat_send", ({ text }) => {
@@ -267,6 +235,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Watch Party Server running!`);
+  console.log(`\n🎬 Perfect Sync Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
 });
