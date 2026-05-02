@@ -4,9 +4,10 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0a0a0f"/>
-<title>Universal Watch Party 🎬</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<title>Watch Party 🎬</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="/socket.io/socket.io.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -23,6 +24,7 @@
     --success: #10b981;
     --danger: #ef4444;
     --header-height: 56px;
+    --sidebar-width: 300px;
   }
   
   body {
@@ -31,8 +33,8 @@
     color: var(--text);
     overflow: hidden;
     height: 100vh;
-    position: fixed;
     width: 100%;
+    position: fixed;
   }
   
   /* Lobby */
@@ -45,26 +47,28 @@
     justify-content: center;
     z-index: 100;
     padding: 20px;
+    overflow-y: auto;
   }
   
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 24px;
+    border-radius: 28px;
     padding: 40px;
-    width: 420px;
+    width: 440px;
     max-width: 100%;
     animation: slideUp 0.4s ease;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
   }
   
   @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
+    from { opacity: 0; transform: translateY(30px); }
     to { opacity: 1; transform: translateY(0); }
   }
   
   .logo {
     font-family: 'Syne', sans-serif;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 800;
     background: linear-gradient(135deg, #a78bfa, #7c3aed);
     -webkit-background-clip: text;
@@ -75,6 +79,7 @@
     color: var(--muted);
     font-size: 13px;
     margin: 8px 0 32px 0;
+    line-height: 1.5;
   }
   
   .tabs {
@@ -82,29 +87,31 @@
     gap: 8px;
     background: rgba(255,255,255,0.05);
     padding: 4px;
-    border-radius: 12px;
-    margin-bottom: 24px;
+    border-radius: 16px;
+    margin-bottom: 28px;
   }
   
   .tab {
     flex: 1;
-    padding: 10px;
+    padding: 12px;
     background: transparent;
     border: none;
     color: var(--muted);
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
     transition: 0.2s;
+    font-size: 14px;
   }
   
   .tab.active {
     background: var(--accent);
     color: white;
+    box-shadow: 0 2px 8px rgba(124,58,237,0.3);
   }
   
   .field {
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
   
   .field label {
@@ -112,40 +119,45 @@
     font-size: 11px;
     text-transform: uppercase;
     color: var(--muted);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
   }
   
   .field input {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     color: var(--text);
-    font-size: 14px;
+    font-size: 15px;
     outline: none;
+    transition: 0.2s;
   }
   
   .field input:focus {
     border-color: var(--accent);
+    background: rgba(124,58,237,0.1);
   }
   
   .btn {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     background: var(--accent);
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     color: white;
-    font-weight: 600;
-    font-size: 14px;
+    font-weight: 700;
+    font-size: 15px;
     cursor: pointer;
     transition: 0.2s;
+    margin-top: 8px;
   }
   
   .btn:hover {
     background: var(--accent2);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
   }
   
   .err {
@@ -177,28 +189,36 @@
     padding: 0 16px;
     flex-shrink: 0;
     z-index: 10;
+    gap: 10px;
   }
   
   .topbar-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
+    flex: 1;
   }
   
   .app-logo {
     font-weight: 800;
     font-size: 16px;
+    white-space: nowrap;
   }
   
   .room-info {
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.08);
     padding: 5px 12px;
-    border-radius: 20px;
+    border-radius: 24px;
     font-size: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  
+  .room-code-text {
+    font-weight: 700;
+    letter-spacing: 1px;
   }
   
   .copy-btn {
@@ -206,29 +226,38 @@
     border: none;
     color: var(--muted);
     cursor: pointer;
-    font-size: 14px;
-    padding: 2px;
+    font-size: 13px;
+    padding: 4px;
+    transition: 0.2s;
+  }
+  
+  .copy-btn:active {
+    transform: scale(0.95);
   }
   
   .host-badge {
     background: var(--accent);
-    padding: 3px 10px;
+    padding: 4px 10px;
     border-radius: 20px;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
+    white-space: nowrap;
   }
   
   .sync-status {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--muted);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    background: rgba(255,255,255,0.05);
+    padding: 4px 10px;
+    border-radius: 20px;
   }
   
   .sync-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: var(--success);
     animation: pulse 2s infinite;
@@ -242,6 +271,10 @@
   .member-count {
     font-size: 12px;
     color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
   }
   
   /* Main Layout */
@@ -272,12 +305,12 @@
   
   .url-bar input {
     flex: 1;
-    padding: 10px 14px;
+    padding: 12px 14px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     color: var(--text);
-    font-size: 13px;
+    font-size: 14px;
     min-width: 180px;
   }
   
@@ -287,24 +320,20 @@
   }
   
   .url-bar button {
-    padding: 10px 20px;
+    padding: 12px 24px;
     background: var(--accent);
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     color: white;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 14px;
     cursor: pointer;
     transition: 0.2s;
     white-space: nowrap;
   }
   
-  .url-bar button:hover {
-    background: var(--accent2);
-  }
-  
-  .url-bar button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .url-bar button:active {
+    transform: scale(0.97);
   }
   
   .detected-platform {
@@ -321,10 +350,11 @@
   
   .platform-badge {
     background: var(--accent);
-    padding: 2px 8px;
-    border-radius: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
     font-size: 10px;
     color: white;
+    font-weight: 600;
   }
   
   .player-container {
@@ -348,12 +378,6 @@
     border: none;
   }
   
-  video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-  
   .placeholder {
     position: absolute;
     top: 50%;
@@ -363,8 +387,8 @@
     color: var(--muted);
     z-index: 10;
     background: #000;
-    padding: 20px;
-    border-radius: 16px;
+    padding: 24px;
+    border-radius: 20px;
     pointer-events: none;
   }
   
@@ -381,30 +405,34 @@
   }
   
   .control-btn {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.08);
     border: 1px solid var(--border);
     color: var(--text);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 18px;
     transition: 0.2s;
     flex-shrink: 0;
   }
   
-  .control-btn:hover:not(:disabled) {
+  .control-btn:active {
+    transform: scale(0.95);
     background: var(--accent);
-    border-color: var(--accent);
-    transform: scale(1.05);
   }
   
   .control-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+  
+  .control-btn:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
   }
   
   .seek-bar {
@@ -418,8 +446,8 @@
   
   .seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
@@ -443,36 +471,70 @@
   
   .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
   }
   
   .fullscreen-btn {
-    background: none;
-    border: none;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--border);
     color: var(--text);
     font-size: 18px;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
+    padding: 10px;
+    border-radius: 12px;
     transition: 0.2s;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
-  .fullscreen-btn:hover {
-    background: rgba(255,255,255,0.1);
+  .fullscreen-btn:active {
+    transform: scale(0.95);
+    background: var(--accent);
   }
   
   /* Sidebar - Chat */
   .sidebar {
-    width: 280px;
+    width: var(--sidebar-width);
     background: var(--surface);
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+  }
+  
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .sidebar-header .section-title {
+    margin-bottom: 0;
+  }
+  
+  .close-sidebar-btn {
+    background: rgba(255,255,255,0.08);
+    border: none;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 10px;
+    transition: 0.2s;
+    display: none;
+  }
+  
+  .close-sidebar-btn:active {
+    background: rgba(255,255,255,0.15);
   }
   
   .members-section {
@@ -487,38 +549,39 @@
     text-transform: uppercase;
     color: var(--muted);
     margin-bottom: 12px;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 1px;
   }
   
   .member-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
   
   .member-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     font-size: 13px;
-    padding: 5px 8px;
-    border-radius: 8px;
+    padding: 6px 8px;
+    border-radius: 12px;
     transition: background 0.2s;
   }
   
-  .member-item:hover {
+  .member-item:active {
     background: rgba(255,255,255,0.05);
   }
   
   .member-avatar {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
-    font-size: 12px;
+    font-weight: 700;
+    font-size: 13px;
     flex-shrink: 0;
   }
   
@@ -532,9 +595,10 @@
   .host-tag {
     font-size: 9px;
     background: var(--accent);
-    padding: 2px 6px;
-    border-radius: 10px;
+    padding: 3px 8px;
+    border-radius: 12px;
     flex-shrink: 0;
+    font-weight: 600;
   }
   
   .chat-section {
@@ -550,13 +614,19 @@
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
   
   .message {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    animation: fadeIn 0.2s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   
   .message.system {
@@ -566,7 +636,7 @@
   .system-text {
     font-size: 11px;
     background: rgba(255,255,255,0.05);
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 20px;
     color: var(--muted);
   }
@@ -576,10 +646,11 @@
     align-items: center;
     gap: 8px;
     font-size: 11px;
+    padding: 0 4px;
   }
   
   .message-name {
-    font-weight: 600;
+    font-weight: 700;
   }
   
   .message-time {
@@ -588,12 +659,13 @@
   }
   
   .message-bubble {
-    background: rgba(255,255,255,0.05);
-    padding: 8px 12px;
-    border-radius: 12px;
+    background: rgba(255,255,255,0.08);
+    padding: 10px 14px;
+    border-radius: 16px;
     font-size: 13px;
-    max-width: 220px;
+    max-width: 240px;
     word-wrap: break-word;
+    line-height: 1.4;
   }
   
   .message.mine {
@@ -606,21 +678,22 @@
   
   .chat-input {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     padding: 12px;
     border-top: 1px solid var(--border);
     flex-shrink: 0;
+    background: var(--surface);
   }
   
   .chat-input input {
     flex: 1;
-    padding: 10px;
-    background: rgba(255,255,255,0.05);
+    padding: 12px;
+    background: rgba(255,255,255,0.08);
     border: 1px solid var(--border);
-    border-radius: 24px;
+    border-radius: 28px;
     color: var(--text);
     outline: none;
-    font-size: 13px;
+    font-size: 14px;
   }
   
   .chat-input input:focus {
@@ -628,8 +701,8 @@
   }
   
   .chat-input button {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: var(--accent);
     border: none;
@@ -637,10 +710,14 @@
     cursor: pointer;
     transition: 0.2s;
     flex-shrink: 0;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
-  .chat-input button:hover {
-    background: var(--accent2);
+  .chat-input button:active {
+    transform: scale(0.95);
   }
   
   #toast {
@@ -650,7 +727,7 @@
     transform: translateX(-50%);
     background: var(--sur2);
     padding: 10px 20px;
-    border-radius: 24px;
+    border-radius: 28px;
     font-size: 13px;
     z-index: 1000;
     opacity: 0;
@@ -659,6 +736,7 @@
     text-align: center;
     max-width: 90vw;
     white-space: nowrap;
+    font-weight: 500;
   }
   
   #toast.show {
@@ -670,36 +748,51 @@
     .sidebar {
       position: fixed;
       right: -100%;
-      top: var(--header-height);
+      top: 0;
       bottom: 0;
       width: 85%;
-      max-width: 300px;
-      z-index: 20;
-      transition: right 0.3s ease;
-      box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+      max-width: 320px;
+      z-index: 200;
+      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: -5px 0 30px rgba(0,0,0,0.5);
+      border-left: none;
+      border-radius: 20px 0 0 20px;
     }
     
     .sidebar.open {
       right: 0;
     }
     
+    .sidebar-header {
+      padding: 16px 20px;
+    }
+    
+    .close-sidebar-btn {
+      display: flex;
+    }
+    
     .chat-toggle {
       display: flex;
       position: fixed;
-      bottom: 80px;
+      bottom: 20px;
       right: 16px;
-      width: 48px;
-      height: 48px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
       background: var(--accent);
       border: none;
       color: white;
-      font-size: 20px;
+      font-size: 24px;
       cursor: pointer;
-      z-index: 15;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 150;
+      box-shadow: 0 4px 15px rgba(124,58,237,0.4);
       align-items: center;
       justify-content: center;
+      transition: 0.2s;
+    }
+    
+    .chat-toggle:active {
+      transform: scale(0.95);
     }
     
     .controls {
@@ -708,9 +801,15 @@
     }
     
     .control-btn {
-      width: 36px;
-      height: 36px;
-      font-size: 14px;
+      width: 40px;
+      height: 40px;
+      font-size: 16px;
+    }
+    
+    .fullscreen-btn {
+      width: 40px;
+      height: 40px;
+      font-size: 16px;
     }
     
     .time {
@@ -739,6 +838,10 @@
       gap: 8px;
     }
     
+    .app-logo {
+      font-size: 14px;
+    }
+    
     .room-info {
       font-size: 11px;
       padding: 4px 10px;
@@ -751,6 +854,10 @@
     .message-bubble {
       max-width: 180px;
     }
+    
+    .topbar {
+      padding: 0 12px;
+    }
   }
   
   @media (min-width: 769px) {
@@ -762,25 +869,23 @@
       position: relative;
       right: auto !important;
     }
+    
+    .close-sidebar-btn {
+      display: none;
+    }
   }
   
   @media (max-width: 480px) {
-    .topbar {
-      padding: 0 12px;
-    }
-    
-    .app-logo {
+    .control-btn {
+      width: 36px;
+      height: 36px;
       font-size: 14px;
     }
     
-    .sync-status {
-      font-size: 10px;
-    }
-    
-    .control-btn {
-      width: 32px;
-      height: 32px;
-      font-size: 12px;
+    .fullscreen-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 14px;
     }
     
     .time {
@@ -792,16 +897,24 @@
       max-width: 160px;
       font-size: 12px;
     }
+    
+    .chat-toggle {
+      width: 48px;
+      height: 48px;
+      font-size: 20px;
+      bottom: 16px;
+      right: 12px;
+    }
   }
   
   /* Landscape Mode */
   @media (max-width: 900px) and (orientation: landscape) {
     .sidebar {
-      width: 240px;
+      width: 280px;
     }
     
     .members-section {
-      max-height: 120px;
+      max-height: 100px;
     }
     
     .chat-toggle {
@@ -810,6 +923,11 @@
     
     .controls {
       padding: 8px 12px;
+    }
+    
+    .control-btn {
+      width: 36px;
+      height: 36px;
     }
   }
   
@@ -826,10 +944,18 @@
     left: 0;
     right: 0;
     z-index: 100;
+    background: rgba(18, 18, 26, 0.95);
+    backdrop-filter: blur(10px);
   }
   
-  .player-container:fullscreen .controls {
-    background: rgba(18, 18, 26, 0.95);
+  /* Touch feedback */
+  button, .control-btn, .fullscreen-btn, .copy-btn, .tab {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  button:active, .control-btn:active, .fullscreen-btn:active, .copy-btn:active, .tab:active {
+    opacity: 0.8;
   }
 </style>
 </head>
@@ -837,8 +963,8 @@
 
 <div id="lobby">
   <div class="card">
-    <div class="logo">Universal Watch Party</div>
-    <p class="sub">Watch ANY video with friends — YouTube, Vimeo, Twitch, and more!</p>
+    <div class="logo">Watch Party</div>
+    <p class="sub">Watch ANY video with friends — perfectly synced!</p>
     <div class="tabs">
       <button class="tab active" id="tabCreate">Create Room</button>
       <button class="tab" id="tabJoin">Join Room</button>
@@ -846,18 +972,18 @@
     <div id="createForm">
       <div class="field">
         <label>Your Name</label>
-        <input type="text" id="createName" placeholder="e.g. Alex" maxlength="24">
+        <input type="text" id="createName" placeholder="e.g. Alex" maxlength="24" autocomplete="off">
       </div>
       <button class="btn" id="createRoomBtn">🚀 Create Room</button>
     </div>
     <div id="joinForm" style="display: none;">
       <div class="field">
         <label>Your Name</label>
-        <input type="text" id="joinName" placeholder="e.g. Sam" maxlength="24">
+        <input type="text" id="joinName" placeholder="e.g. Sam" maxlength="24" autocomplete="off">
       </div>
       <div class="field">
         <label>Room Code</label>
-        <input type="text" id="joinCode" placeholder="e.g. AB12CD" maxlength="6" style="text-transform: uppercase;">
+        <input type="text" id="joinCode" placeholder="e.g. AB12CD" maxlength="6" style="text-transform: uppercase;" autocomplete="off">
       </div>
       <button class="btn" id="joinRoomBtn">🔗 Join Room</button>
     </div>
@@ -870,7 +996,7 @@
     <div class="topbar-left">
       <span class="app-logo">🎬 Watch Party</span>
       <div class="room-info">
-        <span>Room: <strong id="roomCode">------</strong></span>
+        <span>Room: <strong class="room-code-text" id="roomCode">------</strong></span>
         <button class="copy-btn" id="copyRoomCode">📋</button>
       </div>
       <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
@@ -885,7 +1011,7 @@
   <div class="main">
     <div class="video-panel">
       <div class="url-bar" id="hostControls">
-        <input type="text" id="videoUrl" placeholder="Paste any video URL (YouTube, Vimeo, Twitch, TikTok, etc.)">
+        <input type="text" id="videoUrl" placeholder="Paste video URL (YouTube, Vimeo, Twitch, etc.)" autocomplete="off">
         <button id="loadVideoBtn">🎬 Load Video</button>
       </div>
       <div class="url-bar" id="guestControls" style="display: none;">
@@ -902,10 +1028,10 @@
           <iframe id="videoFrame" style="width:100%; height:100%; border:none; display:none;"></iframe>
         </div>
         <div class="placeholder" id="placeholder">
-          <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
-          <p>No video loaded</p>
-          <p style="font-size: 12px; margin-top: 8px;">Host: Paste any video URL and click Load</p>
-          <p style="font-size: 11px; margin-top: 6px; color: var(--muted);">Supports: YouTube, Vimeo, Dailymotion, Twitch, TikTok, Facebook, Twitter, Instagram, MP4, and more!</p>
+          <div style="font-size: 56px; margin-bottom: 16px;">🎬</div>
+          <p style="font-size: 16px; font-weight: 600;">No video loaded</p>
+          <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Host: Paste any video URL and click Load</p>
+          <p style="font-size: 11px; margin-top: 10px; opacity: 0.5;">Supports: YouTube, Vimeo, Dailymotion, Twitch, MP4, and more!</p>
         </div>
       </div>
       
@@ -913,7 +1039,7 @@
         <button class="control-btn" id="playPauseBtn" disabled>▶</button>
         <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0" disabled>
         <span class="time" id="timeDisplay">0:00 / 0:00</span>
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
           <span>🔊</span>
           <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
         </div>
@@ -922,15 +1048,19 @@
     </div>
     
     <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="section-title">💬 Chat & Members</div>
+        <button class="close-sidebar-btn" id="closeSidebarBtn">✕</button>
+      </div>
       <div class="members-section">
         <div class="section-title">👥 Members</div>
         <div class="member-list" id="membersList"></div>
       </div>
       <div class="chat-section">
-        <div class="section-title" style="padding: 0 12px;">💬 Chat</div>
+        <div class="section-title" style="padding: 0 16px;">💬 Chat</div>
         <div class="messages" id="messages"></div>
         <div class="chat-input">
-          <input type="text" id="chatMessage" placeholder="Say something..." maxlength="300">
+          <input type="text" id="chatMessage" placeholder="Say something..." maxlength="300" autocomplete="off">
           <button id="sendBtn">➤</button>
         </div>
       </div>
@@ -950,11 +1080,10 @@ let roomId;
 let isHost = false;
 let currentPlatform = null;
 let currentVideoUrl = null;
-let playerReady = false;
-let isSeeking = false;
+let currentIframe = null;
 
 // Helper functions
-function showToast(msg, duration = 3000) {
+function showToast(msg, duration = 2500) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -972,46 +1101,31 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Extract YouTube ID from any YouTube URL (including m.youtube.com)
+// Extract YouTube ID from any YouTube URL
 function extractYouTubeId(url) {
-  const urlLower = url.toLowerCase();
-  
-  // Handle youtu.be format
-  let match = url.match(/youtu\.be\/([^?&]+)/);
-  if (match) return match[1];
-  
-  // Handle youtube.com/watch?v=
-  match = url.match(/[?&]v=([^&]+)/);
-  if (match) return match[1];
-  
-  // Handle youtube.com/embed/
-  match = url.match(/\/embed\/([^?&]+)/);
-  if (match) return match[1];
-  
-  // Handle m.youtube.com
-  match = url.match(/m\.youtube\.com\/watch\?v=([^&]+)/);
-  if (match) return match[1];
-  
-  // Handle youtu.be with parameters
-  match = url.match(/youtu\.be\/([^?]+)/);
-  if (match) return match[1];
-  
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|m\.youtube\.com\/watch\?v=)([^&?#]+)/,
+    /youtube\.com\/shorts\/([^?&]+)/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
   return null;
 }
 
-// Detect video platform from URL
+// Detect video platform
 function detectVideoPlatform(url) {
   if (!url) return null;
   const urlLower = url.toLowerCase();
   
-  // YouTube (including m.youtube.com)
+  // YouTube
   if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
     const videoId = extractYouTubeId(url);
     if (videoId) {
       return {
         platform: 'youtube',
-        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0&autoplay=0`,
-        videoId: videoId
+        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0&autoplay=0`
       };
     }
   }
@@ -1022,8 +1136,7 @@ function detectVideoPlatform(url) {
     if (match) {
       return {
         platform: 'vimeo',
-        embedUrl: `https://player.vimeo.com/video/${match[1]}?autoplay=0`,
-        videoId: match[1]
+        embedUrl: `https://player.vimeo.com/video/${match[1]}?autoplay=0`
       };
     }
   }
@@ -1034,8 +1147,7 @@ function detectVideoPlatform(url) {
     if (match) {
       return {
         platform: 'dailymotion',
-        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`,
-        videoId: match[1]
+        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`
       };
     }
   }
@@ -1046,62 +1158,23 @@ function detectVideoPlatform(url) {
     if (match) {
       return {
         platform: 'twitch',
-        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${window.location.hostname}&autoplay=false`,
-        videoId: match[1]
+        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${window.location.hostname}&autoplay=false`
       };
     }
   }
   
-  // TikTok
-  if (urlLower.includes('tiktok.com')) {
-    return {
-      platform: 'tiktok',
-      embedUrl: url,
-      videoId: null
-    };
-  }
-  
-  // Facebook
-  if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch')) {
-    return {
-      platform: 'facebook',
-      embedUrl: url,
-      videoId: null
-    };
-  }
-  
-  // Twitter/X
-  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
-    return {
-      platform: 'twitter',
-      embedUrl: url,
-      videoId: null
-    };
-  }
-  
-  // Instagram
-  if (urlLower.includes('instagram.com')) {
-    return {
-      platform: 'instagram',
-      embedUrl: url,
-      videoId: null
-    };
-  }
-  
   // Direct video files
-  if (url.match(/\.(mp4|webm|ogg|mov|mkv|avi)(\?|$)/i)) {
+  if (url.match(/\.(mp4|webm|ogg|mov|mkv)(\?|$)/i)) {
     return {
       platform: 'direct',
-      embedUrl: url,
-      videoId: null
+      embedUrl: url
     };
   }
   
   // Generic
   return {
     platform: 'generic',
-    embedUrl: url,
-    videoId: null
+    embedUrl: url
   };
 }
 
@@ -1121,21 +1194,15 @@ function renderVideo(videoUrl, platform) {
   currentPlatform = platform;
   currentVideoUrl = videoUrl;
   
-  // Set iframe source
   iframe.style.display = 'block';
   iframe.src = videoUrl;
-  
-  // Add sandbox attributes for security but allow necessary features
-  iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-presentation');
   iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
   iframe.setAttribute('allowfullscreen', 'true');
   
   showToast(`✅ Loaded: ${platform.toUpperCase()}`);
-  playerReady = true;
   
-  // Add load error handler
   iframe.onerror = () => {
-    showToast(`⚠️ Could not load ${platform} video. Try a different link.`);
+    showToast(`⚠️ Could not load video. Try a different link.`);
     placeholder.style.display = 'flex';
     iframe.style.display = 'none';
   };
@@ -1216,7 +1283,6 @@ function updateUI() {
   const hostBadge = document.getElementById('hostBadge');
   const playPauseBtn = document.getElementById('playPauseBtn');
   const seekBar = document.getElementById('seekBar');
-  const loadBtn = document.getElementById('loadVideoBtn');
   
   if (isHost) {
     hostControls.style.display = 'flex';
@@ -1224,14 +1290,12 @@ function updateUI() {
     hostBadge.style.display = 'inline-block';
     playPauseBtn.disabled = false;
     seekBar.disabled = false;
-    if (loadBtn) loadBtn.disabled = false;
   } else {
     hostControls.style.display = 'none';
     guestControls.style.display = 'flex';
     hostBadge.style.display = 'none';
     playPauseBtn.disabled = true;
     seekBar.disabled = true;
-    if (loadBtn) loadBtn.disabled = true;
   }
 }
 
@@ -1361,14 +1425,33 @@ function enterApp(info) {
   updateRoomUI(info);
   updateUI();
   
-  // Setup mobile chat toggle
+  // Mobile chat setup
   const sidebar = document.getElementById('sidebar');
   const chatToggle = document.getElementById('chatToggleBtn');
+  const closeSidebar = document.getElementById('closeSidebarBtn');
+  
   if (window.innerWidth <= 768) {
     chatToggle.style.display = 'flex';
-    chatToggle.onclick = () => {
-      sidebar.classList.toggle('open');
+    
+    // Open chat
+    chatToggle.onclick = (e) => {
+      e.stopPropagation();
+      sidebar.classList.add('open');
     };
+    
+    // Close chat
+    closeSidebar.onclick = () => {
+      sidebar.classList.remove('open');
+    };
+    
+    // Close chat when clicking outside (optional, but might interfere)
+    document.addEventListener('click', (e) => {
+      if (sidebar.classList.contains('open')) {
+        if (!sidebar.contains(e.target) && e.target !== chatToggle) {
+          sidebar.classList.remove('open');
+        }
+      }
+    });
   }
   
   if (info.videoUrl) {
@@ -1377,7 +1460,7 @@ function enterApp(info) {
 }
 
 // Load video (host only)
-async function loadVideo() {
+function loadVideo() {
   if (!isHost) return;
   
   const url = document.getElementById('videoUrl').value.trim();
@@ -1388,7 +1471,6 @@ async function loadVideo() {
   
   showToast('🔍 Detecting video source...');
   
-  // Detect platform
   const detected = detectVideoPlatform(url);
   
   if (!detected) {
@@ -1398,14 +1480,8 @@ async function loadVideo() {
   
   showToast(`📡 Loading from ${detected.platform.toUpperCase()}...`);
   
-  // Test render locally first
-  const testRender = renderVideo(detected.embedUrl, detected.platform);
-  if (!testRender) {
-    showToast('❌ Failed to load video preview');
-    return;
-  }
+  renderVideo(detected.embedUrl, detected.platform);
   
-  // Send to server
   socket.emit('load_video', { 
     videoUrl: detected.embedUrl, 
     videoPlatform: detected.platform 
@@ -1430,13 +1506,11 @@ function toggleFullscreen() {
   }
 }
 
-// Update time display (for non-iframe videos)
+// Time display update
 function updateTimeDisplay() {
-  // For iframe players, we can't get current time accurately
-  // Just show a message
   const timeSpan = document.getElementById('timeDisplay');
   if (currentPlatform !== 'direct') {
-    timeSpan.textContent = 'Use player controls';
+    timeSpan.textContent = 'Use controls';
   }
 }
 
@@ -1473,13 +1547,12 @@ document.getElementById('videoUrl').addEventListener('keypress', (e) => {
 
 document.getElementById('playPauseBtn').addEventListener('click', () => {
   if (!isHost) return;
-  showToast('For embedded videos, use the video player controls', 2000);
+  showToast('Use video player controls for playback', 1500);
 });
 
 document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
 
 document.getElementById('volumeSlider').addEventListener('input', (e) => {
-  // Volume control for iframe is limited
   localStorage.setItem('volume', e.target.value);
 });
 
@@ -1490,15 +1563,23 @@ document.getElementById('sendBtn').addEventListener('click', () => {
   if (!text) return;
   socket.emit('chat_send', { text });
   input.value = '';
+  
+  // Keep focus on mobile - don't close chat when typing
+  if (window.innerWidth <= 768) {
+    setTimeout(() => {
+      input.focus();
+    }, 100);
+  }
 });
 
 document.getElementById('chatMessage').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {
+    e.preventDefault();
     document.getElementById('sendBtn').click();
   }
 });
 
-// Window resize handler for mobile
+// Window resize handler
 window.addEventListener('resize', () => {
   const sidebar = document.getElementById('sidebar');
   const chatToggle = document.getElementById('chatToggleBtn');
@@ -1512,6 +1593,15 @@ window.addEventListener('resize', () => {
 });
 
 setInterval(updateTimeDisplay, 1000);
+
+// Prevent keyboard from closing sidebar on mobile
+document.getElementById('chatMessage').addEventListener('focus', () => {
+  if (window.innerWidth <= 768) {
+    // Keep sidebar open while typing
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.add('open');
+  }
+});
 </script>
 </body>
 </html>
