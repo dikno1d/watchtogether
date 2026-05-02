@@ -1,7 +1,7 @@
 {
-  "name": "watch-party-final",
-  "version": "4.0.0",
-  "description": "Watch any video with friends - Mobile optimized",
+  "name": "watch-party-sync",
+  "version": "5.0.0",
+  "description": "Perfectly synced YouTube watch party",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
