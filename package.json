@@ -1,7 +1,7 @@
 {
-  "name": "watch-party-working",
+  "name": "watch-party-perfect",
   "version": "1.0.0",
-  "description": "Watch any video with friends",
+  "description": "Perfectly synced YouTube watch party",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
