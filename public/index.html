@@ -25,6 +25,7 @@
     --muted: #8884a8;
     --danger: #ef4444;
     --success: #10b981;
+    --warning: #f59e0b;
     --font-h: 'Syne', sans-serif;
     --font-b: 'DM Sans', sans-serif;
     --r: 12px;
@@ -32,7 +33,6 @@
   }
   html, body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font-b); overflow:hidden; -webkit-tap-highlight-color: transparent; }
   
-  /* Mobile-first responsive design */
   @media (max-width: 768px) {
     .card { padding: 32px 24px !important; width: 90% !important; }
     .controls { gap: 8px !important; padding: 10px 12px !important; }
@@ -43,7 +43,6 @@
     .vol-sl { width: 60px !important; }
     .topbar { padding: 0 12px !important; }
     .tl { gap: 8px !important; }
-    .room-pill { padding: 4px 10px !important; font-size: 11px !important; }
   }
   
   @media (max-width: 550px) {
@@ -56,11 +55,10 @@
     .load-btn { width: 100% !important; }
   }
 
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--sur2); }
   ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 99px; }
 
-  /* LOBBY */
   #lobby {
     position: fixed; inset: 0; z-index: 100;
     display: flex; align-items: center; justify-content: center;
@@ -82,11 +80,10 @@
     font-family: var(--font-h); font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; transition: var(--tr); }
   .tab.active { background: var(--accent); color: #fff; box-shadow: 0 4px 16px var(--glow); }
   .field { margin-bottom: 16px; }
-  .field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 500; }
+  .field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
   .field input {
     width: 100%; padding: 12px 14px; background: var(--sur2); border: 1px solid var(--border);
     border-radius: var(--r); color: var(--text); font-family: var(--font-b); font-size: 14px; outline: none;
-    transition: border-color var(--tr);
   }
   .field input:focus { border-color: var(--accent); }
   .btn {
@@ -97,7 +94,6 @@
   .btn:hover { background: var(--accent2); transform: translateY(-1px); }
   .err { color: var(--danger); font-size: 12px; margin-top: 10px; text-align: center; }
 
-  /* APP */
   #app { display: none; height: 100vh; flex-direction: column; }
   #app.on { display: flex; }
   .topbar {
@@ -110,13 +106,11 @@
   .room-pill { background: var(--sur2); border: 1px solid var(--border); border-radius: 99px;
     padding: 5px 14px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
   .rid { font-family: var(--font-h); color: var(--text); font-weight: 700; letter-spacing: 2px; font-size: 13px; }
-  .copy-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; transition: color var(--tr); padding: 4px; }
+  .copy-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11px; padding: 4px; }
   .copy-btn:hover { color: var(--accent2); }
-  .host-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
-    padding: 3px 10px; border-radius: 99px; letter-spacing: 0.5px; }
+  .host-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
   .main { display: flex; flex: 1; overflow: hidden; flex-direction: row; }
 
-  /* VIDEO PANEL */
   .vpanel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #050508; min-width: 0; }
   .urlbar {
     display: flex; gap: 10px; padding: 12px 16px; align-items: center;
@@ -135,74 +129,93 @@
   }
   .load-btn:hover { background: var(--accent2); }
   
-  /* Quality Selector */
-  .quality-selector {
+  /* Buffer Display - Forward Buffer Only */
+  .buffer-display {
     padding: 8px 16px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .buffer-info {
+    display: flex;
+    align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
+  }
+  .buffer-label {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .buffer-bar-container {
+    width: 200px;
+    height: 6px;
+    background: var(--sur3);
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+  }
+  .buffer-progress {
+    height: 100%;
+    transition: width 0.3s ease;
+    border-radius: 99px;
+  }
+  .buffer-text {
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 80px;
+  }
+  .buffer-seconds {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: monospace;
+  }
+  
+  .quality-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
   }
   .quality-label {
     font-size: 11px;
     color: var(--muted);
-    font-weight: 500;
   }
   .quality-buttons {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
   }
   .quality-btn {
-    padding: 4px 12px;
+    padding: 3px 10px;
     background: var(--sur2);
     border: 1px solid var(--border);
     border-radius: 99px;
     color: var(--muted);
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 10px;
     cursor: pointer;
     transition: var(--tr);
   }
   .quality-btn.active {
     background: var(--accent);
     color: #fff;
-    border-color: var(--accent);
   }
   .quality-btn:hover:not(.active) {
     background: var(--sur3);
     color: var(--text);
   }
   
-  .buffer-indicator {
-    margin-left: auto;
-    font-size: 10px;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .buffer-bar {
-    width: 60px;
-    height: 3px;
-    background: var(--sur3);
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .buffer-fill {
-    height: 100%;
-    background: var(--accent2);
-    width: 0%;
-    transition: width 0.3s;
-  }
-  
   .host-note { font-size: 11px; color: var(--muted); }
   .vwrap { flex: 1; position: relative; background: #000; overflow: hidden; min-height: 200px; }
   .placeholder {
     position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 12px; color: var(--muted); pointer-events: none;
+    align-items: center; justify-content: center; gap: 12px; color: var(--muted);
     transition: opacity 0.3s; background: #050508; z-index: 10;
   }
   .placeholder .ico { font-size: 56px; opacity: 0.25; }
@@ -215,7 +228,7 @@
   .cbtn {
     width: 40px; height: 40px; border-radius: 50%; background: var(--sur2);
     border: 1px solid var(--border); color: var(--text); font-size: 16px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; transition: var(--tr); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; transition: var(--tr);
   }
   .cbtn:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px var(--glow); }
   .cbtn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -232,14 +245,13 @@
   .vol-sl { width: 80px; height: 4px; border-radius: 99px; background: var(--sur3); -webkit-appearance: none; cursor: pointer; }
   .vol-sl::-webkit-slider-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); cursor: pointer; -webkit-appearance: none; }
 
-  /* SIDEBAR */
   .sidebar { width: 300px; display: flex; flex-direction: column; background: var(--surface); border-left: 1px solid var(--border); flex-shrink: 0; }
   .members-panel { padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .ptitle { font-family: var(--font-h); font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
   .mlist { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; }
-  .mrow { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; transition: background var(--tr); }
+  .mrow { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; }
   .mrow:hover { background: var(--sur2); }
-  .mav { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .mav { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
   .mtag { font-size: 10px; color: var(--muted); background: var(--sur3); padding: 2px 8px; border-radius: 99px; }
   .chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
   .chat-msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -263,18 +275,17 @@
   #chatInput:focus { border-color: var(--accent); }
   .send-btn {
     width: 40px; height: 40px; border-radius: 10px; background: var(--accent); border: none;
-    color: #fff; font-size: 16px; cursor: pointer; transition: var(--tr);
+    color: #fff; font-size: 16px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
   .send-btn:hover { background: var(--accent2); }
 
   #toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: var(--sur2); border: 1px solid var(--border); color: var(--text);
+    background: var(--sur2); border: 1px solid var(--border);
     padding: 10px 20px; border-radius: 99px; font-size: 13px; z-index: 999;
     pointer-events: none; opacity: 0; transition: opacity 0.3s;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5); white-space: nowrap;
-    max-width: 90vw; white-space: normal; text-align: center;
+    max-width: 90vw; text-align: center;
   }
   #toast.show { opacity: 1; }
   
@@ -283,14 +294,13 @@
     bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(239, 68, 68, 0.9);
+    background: rgba(239, 68, 68, 0.95);
     color: white;
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 99px;
-    font-size: 11px;
+    font-size: 12px;
     z-index: 998;
     display: none;
-    backdrop-filter: blur(4px);
     white-space: nowrap;
   }
   .lag-warning.show { display: block; animation: fadeIn 0.3s ease; }
@@ -348,19 +358,25 @@
         <span class="host-note">⏳ Waiting for host to load a video…</span>
       </div>
       
-      <!-- Quality Selector for mobile optimization -->
-      <div class="quality-selector" id="qualityBar">
-        <span class="quality-label">🎬 Quality:</span>
-        <div class="quality-buttons">
-          <button class="quality-btn" data-quality="auto">Auto</button>
-          <button class="quality-btn" data-quality="small">144p</button>
-          <button class="quality-btn" data-quality="medium">240p</button>
-          <button class="quality-btn" data-quality="large">360p</button>
-          <button class="quality-btn" data-quality="hd720">720p</button>
+      <!-- FORWARD BUFFER DISPLAY (Only what's loaded ahead) -->
+      <div class="buffer-display" id="bufferDisplay" style="display:none;">
+        <div class="buffer-info">
+          <span class="buffer-label">📡 Forward Buffer:</span>
+          <div class="buffer-bar-container">
+            <div class="buffer-progress" id="bufferProgress"></div>
+          </div>
+          <span class="buffer-text" id="bufferText">Loading...</span>
+          <span class="buffer-seconds" id="bufferSeconds"></span>
         </div>
-        <div class="buffer-indicator" id="bufferIndicator" style="display:none;">
-          <span>📡 Buffer</span>
-          <div class="buffer-bar"><div class="buffer-fill" id="bufferFill"></div></div>
+        <div class="quality-selector">
+          <span class="quality-label">🎬 Quality:</span>
+          <div class="quality-buttons">
+            <button class="quality-btn" data-quality="auto">Auto</button>
+            <button class="quality-btn" data-quality="small">144p</button>
+            <button class="quality-btn" data-quality="medium">240p</button>
+            <button class="quality-btn" data-quality="large">360p</button>
+            <button class="quality-btn" data-quality="hd720">720p</button>
+          </div>
         </div>
       </div>
 
@@ -403,7 +419,7 @@
 </div>
 
 <div id="toast"></div>
-<div class="lag-warning" id="lagWarning">⚠️ Slow connection - lowering video quality</div>
+<div class="lag-warning" id="lagWarning">⚠️ Low buffer - Video may pause soon!</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -419,12 +435,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let seeking = false;
   let hbTimer = null;
   let uiInterval = null;
-  let lastSyncTime = 0;
-  let lagCount = 0;
   let currentQuality = 'auto';
-  const DRIFT = 1.2; // Tighter sync for less lag
+  const DRIFT = 1.2;
   
-  // Quality mapping for YouTube
   const qualityMap = {
     'auto': 'default',
     'small': 'small',
@@ -459,7 +472,123 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
   
-  // Set video quality
+  // Calculate forward buffer (only what's loaded ahead of current position)
+  function getForwardBuffer() {
+    if (!player || !pReady) return { percent: 0, seconds: 0 };
+    try {
+      const currentTime = player.getCurrentTime();
+      const duration = player.getDuration();
+      const available = player.getVideoLoadedFraction();
+      
+      // Calculate total loaded seconds
+      const totalLoadedSeconds = available * duration;
+      // Forward buffer = loaded seconds - current position
+      const forwardSeconds = Math.max(0, totalLoadedSeconds - currentTime);
+      // Percent of total duration that is buffered ahead
+      const percentOfTotal = (forwardSeconds / duration) * 100;
+      
+      return {
+        percent: Math.min(100, percentOfTotal),
+        seconds: forwardSeconds,
+        currentTime: currentTime,
+        duration: duration
+      };
+    } catch(e) {
+      return { percent: 0, seconds: 0 };
+    }
+  }
+  
+  // Update buffer display with forward buffer only
+  function updateBufferDisplay() {
+    const buffer = getForwardBuffer();
+    const bufferDisplay = document.getElementById('bufferDisplay');
+    const progressBar = document.getElementById('bufferProgress');
+    const bufferText = document.getElementById('bufferText');
+    const bufferSeconds = document.getElementById('bufferSeconds');
+    
+    if (!bufferDisplay || !isHost) return;
+    
+    bufferDisplay.style.display = 'flex';
+    
+    if (progressBar) {
+      progressBar.style.width = buffer.percent + '%';
+      // Color based on buffer health
+      if (buffer.percent < 10) {
+        progressBar.style.background = '#ef4444'; // Red - Critical
+        if (bufferText) bufferText.style.color = '#ef4444';
+      } else if (buffer.percent < 25) {
+        progressBar.style.background = '#f59e0b'; // Orange - Warning
+        if (bufferText) bufferText.style.color = '#f59e0b';
+      } else if (buffer.percent < 50) {
+        progressBar.style.background = '#eab308'; // Yellow - Okay
+        if (bufferText) bufferText.style.color = '#eab308';
+      } else {
+        progressBar.style.background = '#10b981'; // Green - Good
+        if (bufferText) bufferText.style.color = '#10b981';
+      }
+    }
+    
+    if (bufferText) {
+      if (buffer.percent >= 100) {
+        bufferText.textContent = '✓ Full';
+      } else if (buffer.percent >= 75) {
+        bufferText.textContent = 'Excellent';
+      } else if (buffer.percent >= 50) {
+        bufferText.textContent = 'Good';
+      } else if (buffer.percent >= 25) {
+        bufferText.textContent = 'Okay';
+      } else if (buffer.percent >= 10) {
+        bufferText.textContent = 'Low';
+      } else {
+        bufferText.textContent = 'Critical!';
+      }
+    }
+    
+    if (bufferSeconds) {
+      if (buffer.seconds >= 60) {
+        bufferSeconds.textContent = `📥 ${Math.floor(buffer.seconds / 60)}m ${Math.floor(buffer.seconds % 60)}s ahead`;
+      } else {
+        bufferSeconds.textContent = `📥 ${Math.floor(buffer.seconds)}s ahead`;
+      }
+    }
+    
+    return buffer;
+  }
+  
+  // Monitor forward buffer for lag warnings
+  function monitorForwardBuffer() {
+    if (!player || !pReady) return;
+    
+    const buffer = getForwardBuffer();
+    const lagWarning = document.getElementById('lagWarning');
+    
+    // Show warning if forward buffer is low
+    if (!isHost && buffer.seconds < 5 && buffer.percent < 10) {
+      lagWarning.classList.add('show');
+      if (currentQuality === 'auto') {
+        setVideoQuality('medium');
+        toast('⚠️ Low buffer - lowering quality to 240p', 3000);
+      }
+    } else if (!isHost && buffer.seconds < 10 && buffer.percent < 15) {
+      lagWarning.classList.add('show');
+      setTimeout(() => lagWarning.classList.remove('show'), 1500);
+    } else {
+      lagWarning.classList.remove('show');
+    }
+    
+    // Auto-quality adjustment based on forward buffer
+    if (!isHost && currentQuality === 'auto') {
+      if (buffer.seconds < 8 && buffer.percent < 12) {
+        setVideoQuality('medium');
+      } else if (buffer.seconds > 30 && buffer.percent > 50 && currentQuality === 'medium') {
+        setVideoQuality('auto');
+        toast('📡 Buffer improved - switching to Auto quality', 2000);
+      }
+    }
+    
+    return buffer;
+  }
+
   function setVideoQuality(quality) {
     if (!player || !pReady) return;
     try {
@@ -467,7 +596,6 @@ document.addEventListener('DOMContentLoaded', () => {
       player.setPlaybackQuality(ytQuality);
       currentQuality = quality;
       
-      // Update UI
       document.querySelectorAll('.quality-btn').forEach(btn => {
         if (btn.dataset.quality === quality) {
           btn.classList.add('active');
@@ -477,50 +605,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       
       if (quality !== 'auto') {
-        toast(`🎥 Quality set to ${quality.replace('hd720', '720p').replace('large', '360p').replace('medium', '240p').replace('small', '144p')}`);
+        const qualityName = quality.replace('hd720', '720p').replace('large', '360p').replace('medium', '240p').replace('small', '144p');
+        toast(`🎥 Quality: ${qualityName}`);
       }
     } catch(e) { console.warn('Quality change failed:', e); }
-  }
-  
-  // Monitor buffer health
-  function monitorBuffer() {
-    if (!player || !pReady) return;
-    try {
-      const currentTime = player.getCurrentTime();
-      const duration = player.getDuration();
-      const available = player.getVideoLoadedFraction();
-      const bufferPercent = available * 100;
-      
-      const bufferFill = document.getElementById('bufferFill');
-      const bufferIndicator = document.getElementById('bufferIndicator');
-      if (bufferFill) bufferFill.style.width = bufferPercent + '%';
-      if (bufferIndicator && !isHost) bufferIndicator.style.display = 'flex';
-      
-      // Auto-adjust quality based on buffer (for non-host)
-      if (!isHost && currentQuality === 'auto') {
-        if (bufferPercent < 15 && player.getPlayerState() === 1) {
-          // Low buffer - lower quality
-          const lagWarning = document.getElementById('lagWarning');
-          lagWarning.classList.add('show');
-          setTimeout(() => lagWarning.classList.remove('show'), 2000);
-          
-          if (currentQuality === 'auto') {
-            setVideoQuality('medium');
-          }
-        } else if (bufferPercent > 60 && currentQuality === 'medium') {
-          // Good buffer - can increase quality
-          setVideoQuality('auto');
-        }
-      }
-      
-      // Send buffer health to host for monitoring
-      if (isHost && socket) {
-        socket.emit('heartbeat', { 
-          currentTime, 
-          bufferHealth: bufferPercent 
-        });
-      }
-    } catch(e) {}
   }
 
   function applyHostUI() {
@@ -531,6 +619,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPlay = document.getElementById("btnPlay");
     const seekBar = document.getElementById("seekBar");
     const placeholderSub = document.getElementById("placeholderSub");
+    const bufferDisplay = document.getElementById("bufferDisplay");
+    
     if (hostBar) hostBar.style.display = isHost ? "flex" : "none";
     if (guestBar) guestBar.style.display = isHost ? "none" : "flex";
     if (hostBadge) hostBadge.style.display = isHost ? "inline-block" : "none";
@@ -538,6 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnPlay) btnPlay.disabled = !isHost;
     if (seekBar) seekBar.disabled = !isHost;
     if (placeholderSub) placeholderSub.textContent = isHost ? "Paste a YouTube URL above and click Load" : "Waiting for host…";
+    if (bufferDisplay) bufferDisplay.style.display = isHost ? "flex" : "none";
   }
 
   function updateRoom(info) {
@@ -616,20 +707,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const targetTime = st.currentTime || 0;
       const diff = Math.abs(currentTime - targetTime);
       
-      // Only seek if difference is significant
       if (diff > DRIFT) {
         player.seekTo(targetTime, true);
-        console.log(`Syncing: diff=${diff.toFixed(2)}s`);
       }
       
-      // Handle play/pause state
       if (st.playing && player.getPlayerState() !== 1) {
         player.playVideo();
       } else if (!st.playing && player.getPlayerState() === 1) {
         player.pauseVideo();
       }
-      
-      lastSyncTime = Date.now();
     } catch (e) { console.warn(e); }
   }
 
@@ -703,7 +789,6 @@ document.addEventListener('DOMContentLoaded', () => {
           if (volSlider) e.target.setVolume(parseInt(volSlider.value));
           if (startSec > 0) e.target.seekTo(startSec, true);
           
-          // Set initial quality
           setTimeout(() => setVideoQuality(currentQuality), 1000);
           
           if (!autoplay) {
@@ -730,10 +815,15 @@ document.addEventListener('DOMContentLoaded', () => {
               const playBtn = document.getElementById("btnPlay");
               if (playBtn) playBtn.textContent = player.getPlayerState() === YT.PlayerState.PLAYING ? "⏸" : "▶";
               
-              // Monitor buffer for laggy connections
-              monitorBuffer();
+              // Update forward buffer display (only for host)
+              if (isHost) {
+                updateBufferDisplay();
+              } else {
+                // Monitor buffer for lag warnings (guests)
+                monitorForwardBuffer();
+              }
             } catch (e) {}
-          }, 300); // Faster update for better sync
+          }, 500);
           
           if (isHost) {
             if (hbTimer) clearInterval(hbTimer);
@@ -741,11 +831,10 @@ document.addEventListener('DOMContentLoaded', () => {
               if (!isHost || !player || !pReady) return;
               try {
                 socket.emit("heartbeat", { 
-                  currentTime: player.getCurrentTime(),
-                  bufferHealth: player.getVideoLoadedFraction() * 100
+                  currentTime: player.getCurrentTime()
                 });
               } catch {}
-            }, 3000); // More frequent heartbeats
+            }, 3000);
           }
           
           toast("✅ Video loaded!");
@@ -756,13 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (playBtn) playBtn.textContent = e.data === YT.PlayerState.PLAYING ? "⏸" : "▶";
         },
         onError(e) {
-          const codes = {
-            2: "Invalid video ID",
-            5: "HTML5 error",
-            100: "Video not found",
-            101: "Embed not allowed",
-            150: "Embed not allowed"
-          };
+          const codes = { 2: "Invalid video ID", 5: "HTML5 error", 100: "Video not found", 101: "Embed not allowed", 150: "Embed not allowed" };
           toast(`❌ ${codes[e.data] || "YouTube error " + e.data}. Try another video.`);
           const placeholder = document.getElementById("placeholder");
           if (placeholder) {
@@ -943,11 +1026,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatInput = document.getElementById("chatInput");
   if (chatInput) chatInput.addEventListener('keypress', chatKey);
   
-  // Quality selector buttons
   document.querySelectorAll('.quality-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const quality = btn.dataset.quality;
-      setVideoQuality(quality);
+      setVideoQuality(btn.dataset.quality);
     });
   });
 
