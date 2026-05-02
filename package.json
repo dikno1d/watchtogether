@@ -1,15 +1,13 @@
 {
-  "name": "watch-party-universal",
-  "version": "3.0.0",
-  "description": "Watch any video from any website with friends",
+  "name": "watch-party-final",
+  "version": "4.0.0",
+  "description": "Watch any video with friends - Mobile optimized",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.5",
-    "axios": "^1.6.0",
-    "cheerio": "^1.0.0-rc.12"
+    "socket.io": "^4.7.5"
   }
 }
