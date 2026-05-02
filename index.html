@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WatchTogether 🎬</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<!-- YouTube IFrame API — must load before any player code runs -->
+<script src="https://www.youtube.com/iframe_api"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #12121a;
+    --sur2:    #1a1a26;
+    --sur3:    #22223a;
+    --border:  rgba(255,255,255,0.07);
+    --accent:  #7c3aed;
+    --accent2: #a855f7;
+    --glow:    rgba(124,58,237,0.35);
+    --text:    #f0eeff;
+    --muted:   #8884a8;
+    --danger:  #ef4444;
+    --font-h:  'Syne', sans-serif;
+    --font-b:  'DM Sans', sans-serif;
+    --r:       12px;
+    --tr:      0.18s ease;
+  }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:var(--font-b); overflow:hidden; }
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-thumb { background:var(--sur3); border-radius:99px; }
+
+  /* LOBBY */
+  #lobby {
+    position:fixed; inset:0; z-index:100;
+    display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,0.18), transparent 70%), var(--bg);
+  }
+  .card {
+    background:var(--surface); border:1px solid var(--border); border-radius:20px;
+    padding:44px 40px; width:420px;
+    box-shadow:0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.12);
+    animation:fadeUp 0.4s ease;
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:none} }
+  .logo { font-family:var(--font-h); font-size:28px; font-weight:800; letter-spacing:-1px;
+    background:linear-gradient(135deg,#a78bfa,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .sub  { color:var(--muted); font-size:13px; margin-bottom:32px; margin-top:4px; }
+  .tabs { display:flex; gap:4px; background:var(--sur2); border-radius:10px; padding:4px; margin-bottom:28px; }
+  .tab  { flex:1; padding:9px; border:none; background:transparent; color:var(--muted);
+    font-family:var(--font-h); font-size:13px; font-weight:700; border-radius:8px; cursor:pointer; transition:var(--tr); }
+  .tab.active { background:var(--accent); color:#fff; box-shadow:0 4px 16px var(--glow); }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; letter-spacing:.5px; text-transform:uppercase; }
+  .field input {
+    width:100%; padding:12px 14px; background:var(--sur2); border:1px solid var(--border);
+    border-radius:var(--r); color:var(--text); font-family:var(--font-b); font-size:14px; outline:none;
+    transition:border-color var(--tr);
+  }
+  .field input:focus { border-color:var(--accent); }
+  .btn {
+    width:100%; padding:13px; background:var(--accent); border:none; border-radius:var(--r);
+    color:#fff; font-family:var(--font-h); font-size:15px; font-weight:700; cursor:pointer;
+    transition:var(--tr); box-shadow:0 4px 24px var(--glow);
+  }
+  .btn:hover { background:var(--accent2); transform:translateY(-1px); }
+  .err { color:var(--danger); font-size:12px; margin-top:10px; text-align:center; min-height:18px; }
+
+  /* APP */
+  #app { display:none; height:100vh; flex-direction:column; }
+  #app.on { display:flex; }
+  .topbar {
+    height:52px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 20px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  .tl { display:flex; align-items:center; gap:14px; }
+  .logo-sm { font-family:var(--font-h); font-weight:800; font-size:17px;
+    background:linear-gradient(135deg,#a78bfa,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .room-pill { background:var(--sur2); border:1px solid var(--border); border-radius:99px;
+    padding:4px 14px; font-size:12px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  .rid { font-family:var(--font-h); color:var(--text); font-weight:700; letter-spacing:2px; font-size:13px; }
+  .copy-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; transition:color var(--tr); }
+  .copy-btn:hover { color:var(--accent2); }
+  .host-badge { background:var(--accent); color:#fff; font-size:10px; font-weight:700;
+    padding:2px 8px; border-radius:99px; letter-spacing:.5px; }
+  .main { display:flex; flex:1; overflow:hidden; }
+
+  /* VIDEO PANEL */
+  .vpanel { flex:1; display:flex; flex-direction:column; overflow:hidden; background:#050508; }
+  .urlbar {
+    display:flex; gap:8px; padding:12px 16px; align-items:center;
+    background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  #urlInput {
+    flex:1; padding:10px 14px; background:var(--sur2); border:1px solid var(--border);
+    border-radius:10px; color:var(--text); font-family:var(--font-b); font-size:13px; outline:none;
+    transition:border-color var(--tr);
+  }
+  #urlInput:focus { border-color:var(--accent); }
+  .load-btn {
+    padding:10px 20px; background:var(--accent); border:none; border-radius:10px;
+    color:#fff; font-family:var(--font-h); font-weight:700; font-size:13px;
+    cursor:pointer; transition:var(--tr); white-space:nowrap;
+  }
+  .load-btn:hover { background:var(--accent2); }
+  .host-note { font-size:11px; color:var(--muted); }
+  .vwrap { flex:1; position:relative; background:#000; overflow:hidden; }
+  /* placeholder */
+  .placeholder {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:12px; color:var(--muted); pointer-events:none;
+    transition:opacity .3s;
+  }
+  .placeholder .ico { font-size:56px; opacity:.25; }
+  /* YT player fills the wrap */
+  #yt-player { position:absolute; inset:0; width:100%; height:100%; }
+  #yt-player iframe { width:100%; height:100%; }
+
+  /* controls */
+  .controls {
+    display:flex; align-items:center; gap:12px; padding:12px 18px;
+    background:var(--surface); border-top:1px solid var(--border); flex-shrink:0;
+  }
+  .cbtn {
+    width:38px; height:38px; border-radius:50%; background:var(--sur2);
+    border:1px solid var(--border); color:var(--text); font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:var(--tr); flex-shrink:0;
+  }
+  .cbtn:hover:not(:disabled) { background:var(--accent); border-color:var(--accent); box-shadow:0 0 12px var(--glow); }
+  .cbtn:disabled { opacity:.35; cursor:not-allowed; }
+  .seek {
+    flex:1; height:4px; border-radius:99px; background:var(--sur3);
+    -webkit-appearance:none; cursor:pointer; outline:none;
+  }
+  .seek::-webkit-slider-thumb {
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:var(--accent2); box-shadow:0 0 6px var(--glow); cursor:pointer;
+  }
+  .time { font-size:12px; color:var(--muted); font-family:monospace; white-space:nowrap; }
+  .vol-wrap { display:flex; align-items:center; gap:8px; }
+  .vol-sl {
+    width:72px; height:4px; border-radius:99px; background:var(--sur3);
+    -webkit-appearance:none; cursor:pointer; outline:none;
+  }
+  .vol-sl::-webkit-slider-thumb {
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--muted); cursor:pointer;
+  }
+
+  /* SIDEBAR */
+  .sidebar { width:300px; display:flex; flex-direction:column; background:var(--surface); border-left:1px solid var(--border); flex-shrink:0; }
+  .members-panel { padding:14px 16px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .ptitle { font-family:var(--font-h); font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  .mlist { display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto; }
+  .mrow { display:flex; align-items:center; gap:9px; padding:6px 8px; border-radius:8px; transition:background var(--tr); }
+  .mrow:hover { background:var(--sur2); }
+  .mav { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex-shrink:0; }
+  .mtag { font-size:10px; color:var(--muted); background:var(--sur3); padding:1px 6px; border-radius:99px; }
+  .chat-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .chat-msgs { flex:1; overflow-y:auto; padding:14px 14px 8px; display:flex; flex-direction:column; gap:8px; }
+  .cmsg { display:flex; flex-direction:column; gap:2px; animation:fadeIn .2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+  .cmsg.sys { align-items:center; }
+  .sys-text { font-size:11px; color:var(--muted); background:var(--sur2); padding:3px 10px; border-radius:99px; }
+  .chdr { display:flex; align-items:center; gap:6px; }
+  .cname { font-size:11px; font-weight:700; }
+  .cts  { font-size:10px; color:var(--muted); }
+  .cbub { background:var(--sur2); border:1px solid var(--border); border-radius:4px 12px 12px 12px;
+    padding:8px 12px; font-size:13px; line-height:1.5; max-width:240px; word-break:break-word; }
+  .cmsg.mine .cbub { background:var(--accent); border-color:var(--accent); border-radius:12px 12px 4px 12px; align-self:flex-end; }
+  .cmsg.mine { align-items:flex-end; }
+  .cmsg.mine .chdr { flex-direction:row-reverse; }
+  .cinput-row { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); flex-shrink:0; }
+  #chatInput {
+    flex:1; padding:10px 12px; background:var(--sur2); border:1px solid var(--border);
+    border-radius:10px; color:var(--text); font-family:var(--font-b); font-size:13px; outline:none; transition:border-color var(--tr);
+  }
+  #chatInput:focus { border-color:var(--accent); }
+  .send-btn {
+    width:40px; height:40px; border-radius:10px; background:var(--accent); border:none;
+    color:#fff; font-size:16px; cursor:pointer; transition:var(--tr);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .send-btn:hover { background:var(--accent2); }
+
+  #toast {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--sur2); border:1px solid var(--border); color:var(--text);
+    padding:10px 20px; border-radius:99px; font-size:13px; z-index:999;
+    pointer-events:none; opacity:0; transition:opacity .3s;
+    box-shadow:0 8px 32px rgba(0,0,0,.5);
+  }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <div class="card">
+    <div class="logo">WatchTogether</div>
+    <p class="sub">Watch YouTube together with up to 10 friends — perfectly in sync</p>
+    <div class="tabs">
+      <button class="tab active" id="tabC" onclick="switchTab('create')">Create Room</button>
+      <button class="tab"        id="tabJ" onclick="switchTab('join')">Join Room</button>
+    </div>
+    <div id="createForm">
+      <div class="field"><label>Your Name</label>
+        <input id="createName" type="text" placeholder="e.g. Alex" maxlength="24" autocomplete="off"/></div>
+      <button class="btn" onclick="createRoom()">🚀 Create Room</button>
+    </div>
+    <div id="joinForm" style="display:none">
+      <div class="field"><label>Your Name</label>
+        <input id="joinName" type="text" placeholder="e.g. Sam" maxlength="24" autocomplete="off"/></div>
+      <div class="field"><label>Room Code</label>
+        <input id="joinCode" type="text" placeholder="e.g. AB12CD" maxlength="6" autocomplete="off"
+          style="text-transform:uppercase;letter-spacing:3px" oninput="this.value=this.value.toUpperCase()"/></div>
+      <button class="btn" onclick="joinRoom()">🔗 Join Room</button>
+    </div>
+    <div class="err" id="lobbyErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tl">
+      <span class="logo-sm">WatchTogether</span>
+      <div class="room-pill">
+        Room:&nbsp;<span class="rid" id="dispRoom">------</span>
+        <button class="copy-btn" onclick="copyCode()">📋 copy</button>
+      </div>
+      <span class="host-badge" id="hostBadge" style="display:none">HOST</span>
+    </div>
+    <span style="font-size:12px;color:var(--muted)" id="memberCount">1/10 members</span>
+  </div>
+
+  <div class="main">
+    <div class="vpanel">
+      <div class="urlbar" id="hostBar">
+        <input id="urlInput" type="text"
+          placeholder="Paste YouTube URL — e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          autocomplete="off" onkeydown="if(event.key==='Enter')loadVideo()"/>
+        <button class="load-btn" onclick="loadVideo()">▶ Load</button>
+      </div>
+      <div class="urlbar" id="guestBar" style="display:none">
+        <span class="host-note">⏳ Waiting for host to load a video…</span>
+      </div>
+
+      <div class="vwrap">
+        <div class="placeholder" id="placeholder">
+          <div class="ico">🎬</div>
+          <p style="font-size:14px">No video loaded yet</p>
+          <p style="font-size:12px;opacity:.6" id="placeholderSub"></p>
+        </div>
+        <!-- YouTube IFrame API will replace this div with an <iframe> -->
+        <div id="yt-player"></div>
+      </div>
+
+      <div class="controls">
+        <button class="cbtn" id="btnPlay" onclick="togglePlay()" disabled>▶</button>
+        <input type="range" class="seek" id="seekBar" min="0" max="100" value="0"
+          oninput="onSeekInput()" onchange="onSeekChange()" disabled/>
+        <span class="time" id="timeDisp">0:00 / 0:00</span>
+        <div class="vol-wrap">
+          <span style="font-size:14px">🔊</span>
+          <input type="range" class="vol-sl" id="volSlider" min="0" max="100" value="80" oninput="onVol()"/>
+        </div>
+        <span style="font-size:11px;color:var(--muted)" id="guestNote"></span>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="members-panel">
+        <div class="ptitle">Members</div>
+        <div class="mlist" id="membersList"></div>
+      </div>
+      <div class="chat-panel">
+        <div class="ptitle" style="padding:14px 16px 0">Chat</div>
+        <div class="chat-msgs" id="chatMsgs"></div>
+        <div class="cinput-row">
+          <input id="chatInput" type="text" placeholder="Say something…"
+            maxlength="300" autocomplete="off" onkeydown="chatKey(event)"/>
+          <button class="send-btn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+//  YouTube IFrame API callback
+//  IMPORTANT: define this BEFORE the API script fires it.
+//  We loaded <script src="iframe_api"> in <head>, so by the
+//  time JS here runs the API may have already called it —
+//  that's fine because we define it at parse time.
+// ─────────────────────────────────────────────────────────
+let _ytReady = false;
+const _ytCbs = [];
+window.onYouTubeIframeAPIReady = function () {
+  _ytReady = true;
+  _ytCbs.forEach(fn => fn());
+  _ytCbs.length = 0;
+};
+function whenYT(cb) {
+  if (_ytReady && window.YT && YT.Player) cb();
+  else _ytCbs.push(cb);
+}
+
+// ─────────────────────────────────────────────────────────
+//  App state
+// ─────────────────────────────────────────────────────────
+const COLORS = ["#FF6B6B","#FFD93D","#6BCB77","#4D96FF","#C77DFF",
+                "#FF9A3C","#00C9A7","#F72585","#48CAE4","#E9C46A"];
+let socket  = null;
+let myId    = null;
+let myName  = "";
+let roomId  = "";
+let isHost  = false;
+let player  = null;
+let pReady  = false;
+let curUrl  = "";
+let dur     = 0;
+let seeking = false;
+let hbTimer = null;
+const DRIFT = 1.5;
+
+// ─────────────────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────────────────
+const fmt = s => { s=Math.floor(s||0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+function toast(msg, ms=2400) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove("show"), ms);
+}
+function setErr(m) { document.getElementById("lobbyErr").textContent = m; }
+
+// Extract YouTube video ID from any YT URL format
+function ytId(url) {
+  if (!url) return null;
+  url = url.trim();
+  // youtu.be/ID
+  let m = url.match(/youtu\.be\/([^?&\s]+)/);
+  if (m) return m[1];
+  // ?v=ID or &v=ID
+  m = url.match(/[?&]v=([^?&\s]+)/);
+  if (m) return m[1];
+  // /embed/ID
+  m = url.match(/\/embed\/([^?&\s]+)/);
+  if (m) return m[1];
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────
+//  Lobby tabs
+// ─────────────────────────────────────────────────────────
+function switchTab(t) {
+  document.getElementById("createForm").style.display = t==="create" ? "" : "none";
+  document.getElementById("joinForm").style.display   = t==="join"   ? "" : "none";
+  document.getElementById("tabC").classList.toggle("active", t==="create");
+  document.getElementById("tabJ").classList.toggle("active", t==="join");
+  setErr("");
+}
+
+// ─────────────────────────────────────────────────────────
+//  Socket setup
+// ─────────────────────────────────────────────────────────
+function initSocket(name, onConn) {
+  socket = io();
+  socket.on("connect",       () => { myId = socket.id; myName = name; onConn(); });
+  socket.on("connect_error", () => setErr("❌ Cannot connect — is server.js running?"));
+  socket.on("disconnect",    () => toast("⚠️ Disconnected from server"));
+  socket.on("room_update",   info => updateRoom(info));
+  socket.on("you_are_host",  ()   => { isHost = true; applyHostUI(); toast("👑 You are now the host!"); });
+  socket.on("video_state",   st   => applyState(st));
+  socket.on("chat_message",  msg  => appendChat(msg));
+  socket.on("sync_time", ({ currentTime }) => {
+    if (!isHost && player && pReady) {
+      try {
+        if (Math.abs(player.getCurrentTime() - currentTime) > DRIFT)
+          player.seekTo(currentTime, true);
+      } catch {}
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+//  Create / Join
+// ─────────────────────────────────────────────────────────
+function createRoom() {
+  const name = document.getElementById("createName").value.trim();
+  if (!name) { setErr("Enter your name first."); return; }
+  initSocket(name, () => {
+    socket.emit("create_room", { name }, res => {
+      if (!res.ok) { setErr(res.error); return; }
+      isHost = true;
+      enterApp(res.roomId, res.info);
+    });
+  });
+}
+function joinRoom() {
+  const name = document.getElementById("joinName").value.trim();
+  const code = document.getElementById("joinCode").value.trim().toUpperCase();
+  if (!name) { setErr("Enter your name."); return; }
+  if (!code) { setErr("Enter a room code."); return; }
+  initSocket(name, () => {
+    socket.emit("join_room", { roomId: code, name }, res => {
+      if (!res.ok) { setErr(res.error); return; }
+      isHost = false;
+      enterApp(res.roomId, res.info);
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+//  Enter app
+// ─────────────────────────────────────────────────────────
+function enterApp(id, info) {
+  roomId = id;
+  document.getElementById("lobby").style.display = "none";
+  document.getElementById("app").classList.add("on");
+  document.getElementById("dispRoom").textContent = roomId;
+  applyHostUI();
+  updateRoom(info);
+  if (info.video && info.video.url) applyState(info.video);
+}
+function applyHostUI() {
+  document.getElementById("hostBadge").style.display = isHost ? "" : "none";
+  document.getElementById("hostBar").style.display   = isHost ? "" : "none";
+  document.getElementById("guestBar").style.display  = isHost ? "none" : "";
+  document.getElementById("guestNote").textContent   = isHost ? "" : "👑 Host controls playback";
+  document.getElementById("btnPlay").disabled        = !isHost;
+  document.getElementById("seekBar").disabled        = !isHost;
+  document.getElementById("placeholderSub").textContent =
+    isHost ? "Paste a YouTube URL above and click Load" : "Waiting for host…";
+}
+function copyCode() {
+  navigator.clipboard.writeText(roomId).then(()=>toast("Room code copied! Share it with friends."));
+}
+function updateRoom(info) {
+  document.getElementById("memberCount").textContent = `${info.members.length}/10 members`;
+  const list = document.getElementById("membersList");
+  list.innerHTML = "";
+  info.members.forEach(m => {
+    const row = document.createElement("div"); row.className = "mrow";
+    const av  = document.createElement("div"); av.className  = "mav";
+    av.style.background = m.color+"33"; av.style.color = m.color;
+    av.textContent = m.name[0].toUpperCase();
+    const nm = document.createElement("span");
+    nm.textContent = m.name; nm.style.flex = "1"; nm.style.fontSize = "13px";
+    row.appendChild(av); row.appendChild(nm);
+    if (m.id === info.host) {
+      const tag = document.createElement("span"); tag.className="mtag"; tag.textContent="host";
+      row.appendChild(tag);
+    }
+    list.appendChild(row);
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+//  Load video (host → server)
+// ─────────────────────────────────────────────────────────
+function loadVideo() {
+  if (!isHost) return;
+  const url = document.getElementById("urlInput").value.trim();
+  const id  = ytId(url);
+  if (!id) { toast("❌ Couldn't find a YouTube video ID in that URL"); return; }
+  socket.emit("video_load", { url });
+  toast("Loading video…");
+}
+
+// ─────────────────────────────────────────────────────────
+//  Apply server video state
+// ─────────────────────────────────────────────────────────
+function applyState(st) {
+  if (!st || !st.url) return;
+  const id = ytId(st.url);
+  if (!id) return;
+  if (isHost) document.getElementById("urlInput").value = st.url;
+
+  if (curUrl !== st.url) {
+    curUrl = st.url;
+    document.getElementById("placeholder").style.opacity = "0";
+    setTimeout(() => { document.getElementById("placeholder").style.display = "none"; }, 300);
+    // Wait for YT API then create player
+    whenYT(() => makePlayer(id, st.currentTime || 0, !!st.playing));
+  } else if (player && pReady) {
+    syncPlayerTo(st);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  Create YT.Player
+//  Key fix: target must be a plain <div id>, not an <iframe>
+// ─────────────────────────────────────────────────────────
+function makePlayer(videoId, startSec, autoplay) {
+  // Destroy previous instance if any
+  if (player) { try { player.destroy(); } catch {} player = null; pReady = false; }
+
+  // Ensure target div exists (destroy() removes it)
+  const wrap = document.querySelector(".vwrap");
+  if (!document.getElementById("yt-player")) {
+    const d = document.createElement("div"); d.id = "yt-player"; wrap.appendChild(d);
+  }
+
+  player = new YT.Player("yt-player", {
+    videoId,
+    width:  "100%",
+    height: "100%",
+    playerVars: {
+      autoplay:       1,           // always start loading; pause below if needed
+      controls:       0,
+      disablekb:      1,
+      iv_load_policy: 3,
+      modestbranding: 1,
+      rel:            0,
+      start:          Math.floor(startSec),
+      enablejsapi:    1,
+      origin:         location.origin || "http://localhost:3000",
+    },
+    events: {
+      onReady(e) {
+        pReady = true;
+        e.target.setVolume(parseInt(document.getElementById("volSlider").value));
+        if (!autoplay) setTimeout(() => { try { e.target.pauseVideo(); } catch {} }, 600);
+        startUILoop();
+        if (isHost) startHeartbeat();
+        toast("✅ Video loaded!");
+      },
+      onStateChange(e) {
+        document.getElementById("btnPlay").textContent =
+          e.data === YT.PlayerState.PLAYING ? "⏸" : "▶";
+      },
+      onError(e) {
+        const codes = {2:"Invalid video ID",5:"HTML5 error",100:"Video not found",
+                       101:"Embed not allowed",150:"Embed not allowed"};
+        toast(`❌ ${codes[e.data] || "YouTube error "+e.data}. Try another video.`);
+        document.getElementById("placeholder").style.display = "flex";
+        document.getElementById("placeholder").style.opacity = "1";
+      }
+    }
+  });
+}
+
+function syncPlayerTo(st) {
+  try {
+    const diff = Math.abs(player.getCurrentTime() - (st.currentTime||0));
+    if (diff > DRIFT) player.seekTo(st.currentTime, true);
+    if (st.playing) player.playVideo(); else player.pauseVideo();
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────
+//  Controls
+// ─────────────────────────────────────────────────────────
+function togglePlay() {
+  if (!isHost || !player || !pReady) return;
+  try {
+    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+      const ct = player.getCurrentTime();
+      player.pauseVideo();
+      socket.emit("video_pause", { currentTime: ct });
+    } else {
+      player.playVideo();
+      socket.emit("video_play");
+    }
+  } catch {}
+}
+function onSeekInput() { seeking = true; }
+function onSeekChange() {
+  if (!isHost || !player || !pReady) return;
+  const ct = (parseFloat(document.getElementById("seekBar").value)/100) * (dur||1);
+  try { player.seekTo(ct, true); } catch {}
+  socket.emit("video_seek", { currentTime: ct });
+  seeking = false;
+}
+function onVol() {
+  const v = parseInt(document.getElementById("volSlider").value);
+  try { if (player && pReady) player.setVolume(v); } catch {}
+}
+
+// ─────────────────────────────────────────────────────────
+//  UI update loop
+// ─────────────────────────────────────────────────────────
+function startUILoop() {
+  setInterval(() => {
+    if (!player || !pReady) return;
+    try {
+      const ct = player.getCurrentTime() || 0;
+      const d  = player.getDuration()    || 0;
+      dur = d;
+      document.getElementById("timeDisp").textContent = `${fmt(ct)} / ${fmt(d)}`;
+      if (!seeking && d > 0)
+        document.getElementById("seekBar").value = (ct/d)*100;
+      document.getElementById("btnPlay").textContent =
+        player.getPlayerState() === YT.PlayerState.PLAYING ? "⏸" : "▶";
+    } catch {}
+  }, 500);
+}
+
+// ─────────────────────────────────────────────────────────
+//  Heartbeat (host keeps guests in sync)
+// ─────────────────────────────────────────────────────────
+function startHeartbeat() {
+  clearInterval(hbTimer);
+  hbTimer = setInterval(() => {
+    if (!isHost || !player || !pReady) return;
+    try { socket.emit("heartbeat", { currentTime: player.getCurrentTime() }); } catch {}
+  }, 5000);
+}
+
+// ─────────────────────────────────────────────────────────
+//  Chat
+// ─────────────────────────────────────────────────────────
+function chatKey(e) { if (e.key==="Enter") { e.preventDefault(); sendChat(); } }
+function sendChat() {
+  const inp = document.getElementById("chatInput");
+  const txt = inp.value.trim();
+  if (!txt) return;
+  socket.emit("chat_send", { text: txt });
+  inp.value = "";
+}
+function appendChat(msg) {
+  const box = document.getElementById("chatMsgs");
+  const div = document.createElement("div");
+  if (msg.system) {
+    div.className = "cmsg sys";
+    const sp = document.createElement("span"); sp.className="sys-text"; sp.textContent=msg.text;
+    div.appendChild(sp);
+  } else {
+    const mine = msg.senderId === myId;
+    div.className = "cmsg" + (mine ? " mine" : "");
+    const hdr = document.createElement("div"); hdr.className = "chdr";
+    const nm  = document.createElement("span"); nm.className = "cname"; nm.style.color = msg.color;
+    nm.textContent = mine ? "You" : msg.name;
+    const ts  = document.createElement("span"); ts.className = "cts";
+    ts.textContent = new Date(msg.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    hdr.appendChild(nm); hdr.appendChild(ts);
+    const bub = document.createElement("div"); bub.className = "cbub"; bub.textContent = msg.text;
+    div.appendChild(hdr); div.appendChild(bub);
+  }
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+</script>
+</body>
+</html>
