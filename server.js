@@ -7,19 +7,19 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
-  pingInterval: 10000,
-  pingTimeout: 5000,
+  pingInterval: 5000, // More frequent pings for better sync
+  pingTimeout: 10000,
+  transports: ['websocket', 'polling']
 });
 
 // Serve static files
 app.use(express.static(path.join(__dirname, "public")));
 
-// Serve index.html for all routes (SPA support)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// In-memory room storage
+// Room storage
 const rooms = {};
 const COLORS = [
   "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
@@ -59,7 +59,6 @@ function roomInfo(roomId) {
 io.on("connection", (socket) => {
   console.log("✅ User connected:", socket.id);
 
-  // Create Room
   socket.on("create_room", ({ name }, cb) => {
     const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
     const color = COLORS[0];
@@ -68,6 +67,7 @@ io.on("connection", (socket) => {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
       video: { url: "", playing: false, currentTime: 0, updatedAt: Date.now() },
+      lastSync: Date.now(),
     };
     
     socket.join(roomId);
@@ -79,7 +79,6 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("room_update", roomInfo(roomId));
   });
 
-  // Join Room
   socket.on("join_room", ({ roomId, name }, cb) => {
     const room = getRoom(roomId);
     
@@ -110,7 +109,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Video Controls (Host only)
   socket.on("video_load", ({ url }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
@@ -120,8 +118,9 @@ io.on("connection", (socket) => {
       url,
       playing: false,
       currentTime: 0,
+      timestamp: Date.now(),
     });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${url}`);
+    console.log(`🎬 Video loaded in ${socket.data.roomId}`);
   });
 
   socket.on("video_play", () => {
@@ -137,8 +136,8 @@ io.on("connection", (socket) => {
       url: room.video.url,
       playing: true,
       currentTime: ct,
+      timestamp: Date.now(),
     });
-    console.log(`▶️ Video played in ${socket.data.roomId}`);
   });
 
   socket.on("video_pause", ({ currentTime }) => {
@@ -153,8 +152,8 @@ io.on("connection", (socket) => {
       url: room.video.url,
       playing: false,
       currentTime,
+      timestamp: Date.now(),
     });
-    console.log(`⏸️ Video paused in ${socket.data.roomId}`);
   });
 
   socket.on("video_seek", ({ currentTime }) => {
@@ -168,11 +167,10 @@ io.on("connection", (socket) => {
       url: room.video.url,
       playing: room.video.playing,
       currentTime,
+      timestamp: Date.now(),
     });
-    console.log(`⏩ Video seeked to ${currentTime}s in ${socket.data.roomId}`);
   });
 
-  // Chat
   socket.on("chat_send", ({ text }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || !text.trim()) return;
@@ -188,17 +186,34 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Heartbeat for sync
-  socket.on("heartbeat", ({ currentTime }) => {
+  // Optimized heartbeat - more frequent sync for laggy connections
+  socket.on("heartbeat", ({ currentTime, bufferHealth }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
     room.video.currentTime = currentTime;
     room.video.updatedAt = Date.now();
-    socket.to(socket.data.roomId).emit("sync_time", { currentTime });
+    
+    // Send sync with buffer health info
+    socket.to(socket.data.roomId).emit("sync_time", { 
+      currentTime,
+      bufferHealth,
+      timestamp: Date.now(),
+    });
   });
 
-  // Disconnect
+  socket.on("request_sync", () => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    
+    socket.emit("video_state", {
+      url: room.video.url,
+      playing: room.video.playing,
+      currentTime: serverTime(room),
+      timestamp: Date.now(),
+    });
+  });
+
   socket.on("disconnect", () => {
     const roomId = socket.data.roomId;
     const room = getRoom(roomId);
@@ -209,15 +224,14 @@ io.on("connection", (socket) => {
 
     if (room.members.size === 0) {
       delete rooms[roomId];
-      console.log(`🗑️ Room ${roomId} deleted (empty)`);
+      console.log(`🗑️ Room ${roomId} deleted`);
       return;
     }
 
-    // Transfer host if needed
     if (room.host === socket.id) {
       room.host = [...room.members.keys()][0];
       io.to(room.host).emit("you_are_host");
-      console.log(`👑 Host transferred to ${room.host} in ${roomId}`);
+      console.log(`👑 Host transferred in ${roomId}`);
     }
 
     io.to(roomId).emit("room_update", roomInfo(roomId));
@@ -228,7 +242,6 @@ io.on("connection", (socket) => {
         ts: Date.now(),
       });
     }
-    console.log(`❌ User disconnected: ${socket.id}`);
   });
 });
 
@@ -236,5 +249,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n🎬 WatchTogether server running!`);
   console.log(`📍 Local: http://localhost:${PORT}`);
-  console.log(`🌍 Ready for Render deployment\n`);
 });
