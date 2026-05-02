@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
-  pingInterval: 2000,
+  pingInterval: 1000,
   pingTimeout: 5000,
   transports: ['websocket', 'polling']
 });
@@ -18,7 +18,6 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Room management
 const rooms = {};
 const COLORS = [
   "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
@@ -127,7 +126,8 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    io.to(socket.data.roomId).emit("video_play", { currentTime, timestamp: Date.now() });
+    console.log(`▶️ Play at ${currentTime} in ${socket.data.roomId}`);
+    io.to(socket.data.roomId).emit("video_play", { currentTime });
   });
 
   socket.on("pause_video", ({ currentTime }) => {
@@ -138,7 +138,8 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    io.to(socket.data.roomId).emit("video_pause", { currentTime, timestamp: Date.now() });
+    console.log(`⏸️ Pause at ${currentTime} in ${socket.data.roomId}`);
+    io.to(socket.data.roomId).emit("video_pause", { currentTime });
   });
 
   socket.on("seek_video", ({ currentTime }) => {
@@ -148,18 +149,19 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    io.to(socket.data.roomId).emit("video_seek", { currentTime, timestamp: Date.now() });
+    console.log(`⏩ Seek to ${currentTime} in ${socket.data.roomId}`);
+    io.to(socket.data.roomId).emit("video_seek", { currentTime });
   });
 
-  socket.on("sync_request", () => {
+  socket.on("force_sync", ({ currentTime, isPlaying }) => {
     const room = getRoom(socket.data.roomId);
-    if (!room) return;
+    if (!room || room.host !== socket.id) return;
     
-    socket.emit("sync_response", {
-      videoId: room.videoId,
-      isPlaying: room.isPlaying,
-      currentTime: room.currentTime
-    });
+    room.currentTime = currentTime;
+    room.isPlaying = isPlaying;
+    room.lastUpdate = Date.now();
+    
+    socket.to(socket.data.roomId).emit("force_sync_response", { currentTime, isPlaying });
   });
 
   socket.on("chat_send", ({ text }) => {
@@ -213,6 +215,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Perfect Watch Party Server running!`);
+  console.log(`\n🎬 Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
 });
