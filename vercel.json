@@ -1,10 +1,17 @@
 {
-  "builds": [
-    { "src": "api/server.js", "use": "@vercel/node" },
-    { "src": "index.html", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "api/server.js" },
-    { "src": "/", "dest": "index.html" }
+  "functions": {
+    "api/socket.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/socket",
+      "destination": "/api/socket.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/public/index.html"
+    }
   ]
 }
