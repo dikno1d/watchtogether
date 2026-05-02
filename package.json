@@ -1,7 +1,7 @@
 {
-  "name": "watch-party-perfect",
+  "name": "watch-party-final",
   "version": "1.0.0",
-  "description": "Perfectly synced YouTube watch party",
+  "description": "No buffer YouTube watch party",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
