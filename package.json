@@ -1,13 +1,16 @@
 {
-  "name": "watchtogether",
+  "name": "watchtogether-stream",
   "version": "1.0.0",
-  "description": "Watch YouTube together in real-time sync",
+  "description": "Server-side video streaming watch party",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.5",
+    "ytdl-core": "^4.11.5",
+    "ytpl": "^2.3.0",
+    "cors": "^2.8.5"
   }
 }
