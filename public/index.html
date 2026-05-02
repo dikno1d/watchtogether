@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Watch Party - Perfect Sync 🎬</title>
+<title>Watch Party - No Buffer 🎬</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="/socket.io/socket.io.js"></script>
@@ -31,7 +31,6 @@
     height: 100vh;
   }
   
-  /* Lobby */
   #lobby {
     position: fixed;
     inset: 0;
@@ -150,7 +149,6 @@
     text-align: center;
   }
   
-  /* App */
   #app {
     display: none;
     height: 100vh;
@@ -210,7 +208,6 @@
     overflow: hidden;
   }
   
-  /* Video Panel */
   .video-panel {
     flex: 1;
     display: flex;
@@ -382,7 +379,6 @@
     50% { opacity: 0.4; }
   }
   
-  /* Sidebar */
   .sidebar {
     width: 280px;
     background: var(--surface);
@@ -559,7 +555,6 @@
     pointer-events: none;
     text-align: center;
     max-width: 90vw;
-    white-space: nowrap;
   }
   
   #toast.show {
@@ -581,7 +576,6 @@
     .url-bar button { width: 100%; }
     .topbar { flex-direction: column; align-items: flex-start; height: auto; padding: 12px; }
     .member-count { align-self: flex-end; }
-    #toast { white-space: normal; }
   }
 </style>
 </head>
@@ -590,7 +584,7 @@
 <div id="lobby">
   <div class="card">
     <div class="logo">Watch Party</div>
-    <p class="sub">Perfectly synced YouTube watching with friends</p>
+    <p class="sub">Perfectly synced YouTube - No buffering for viewers!</p>
     <div class="tabs">
       <button class="tab active" id="tabCreate">Create Room</button>
       <button class="tab" id="tabJoin">Join Room</button>
@@ -628,7 +622,7 @@
       <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
       <div class="sync-status" id="syncStatus">
         <div class="sync-dot"></div>
-        <span>Synced</span>
+        <span id="syncText">Synced</span>
       </div>
     </div>
     <span class="member-count" id="memberCount">0/20 members</span>
@@ -695,14 +689,14 @@ let isHost = false;
 let player = null;
 let playerReady = false;
 let isSeeking = false;
-let syncInterval;
 let currentVideoId = null;
 let lastSyncTime = 0;
-let bufferingCount = 0;
-const SYNC_THRESHOLD = 1.2;
+let forceSyncInterval;
+let viewerForceSyncInterval;
+let lastState = { playing: false, time: 0 };
 
 // Helper functions
-function showToast(msg, duration = 3000) {
+function showToast(msg, duration = 2000) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -720,7 +714,6 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Extract YouTube video ID
 function extractVideoId(url) {
   if (!url) return null;
   const patterns = [
@@ -734,7 +727,7 @@ function extractVideoId(url) {
   return null;
 }
 
-// Create YouTube player
+// Create YouTube player with forced low quality for viewers
 function createPlayer(videoId, startTime = 0, autoPlay = false) {
   const placeholder = document.getElementById('placeholder');
   placeholder.style.display = 'none';
@@ -744,6 +737,8 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
     player = null;
     playerReady = false;
   }
+  
+  console.log(`Creating player: ${videoId}, start: ${startTime}, autoPlay: ${autoPlay}`);
   
   player = new YT.Player('youtube-player', {
     height: '100%',
@@ -756,24 +751,39 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
       rel: 0,
       origin: window.location.origin,
       autoplay: autoPlay ? 1 : 0,
-      start: Math.floor(startTime)
+      start: Math.floor(startTime),
+      iv_load_policy: 3,
+      playsinline: 1
     },
     events: {
       onReady: (event) => {
         playerReady = true;
         event.target.setVolume(parseInt(document.getElementById('volumeSlider').value));
+        
+        // FORCE LOW QUALITY FOR VIEWERS - This prevents buffering!
+        if (!isHost) {
+          setTimeout(() => {
+            if (player && playerReady) {
+              // Force lowest quality for smooth playback
+              player.setPlaybackQuality('small');
+              console.log('Forced low quality for viewer');
+            }
+          }, 500);
+        } else {
+          setTimeout(() => {
+            if (player && playerReady) {
+              player.setPlaybackQuality('auto');
+            }
+          }, 500);
+        }
+        
         if (startTime > 0 && !autoPlay) {
           event.target.seekTo(startTime, true);
           event.target.pauseVideo();
         }
-        showToast('✅ Player ready!');
         
-        // Set quality based on connection
-        setTimeout(() => {
-          if (player && playerReady) {
-            player.setPlaybackQuality('auto');
-          }
-        }, 1000);
+        showToast('✅ Player ready!');
+        document.getElementById('syncText').textContent = 'Synced';
       },
       onStateChange: (event) => {
         const playBtn = document.getElementById('playPauseBtn');
@@ -781,16 +791,23 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
         
         if (state === YT.PlayerState.PLAYING) {
           playBtn.textContent = '⏸';
-          document.getElementById('syncStatus').style.opacity = '1';
+          document.getElementById('syncText').textContent = 'Playing';
+          lastState.playing = true;
         } else if (state === YT.PlayerState.PAUSED) {
           playBtn.textContent = '▶';
+          document.getElementById('syncText').textContent = 'Paused';
+          lastState.playing = false;
         } else if (state === YT.PlayerState.BUFFERING) {
-          bufferingCount++;
-          if (bufferingCount > 3 && !isHost) {
-            showToast('📡 Buffering... Adjusting quality', 2000);
+          document.getElementById('syncText').textContent = 'Buffering...';
+          // Force quality down if buffering
+          if (!isHost && player && playerReady) {
+            setTimeout(() => {
+              try { player.setPlaybackQuality('small'); } catch(e) {}
+            }, 500);
           }
         } else if (state === YT.PlayerState.ENDED) {
           playBtn.textContent = '▶';
+          document.getElementById('syncText').textContent = 'Ended';
         }
       },
       onError: (event) => {
@@ -826,7 +843,12 @@ function initSocket(name, callback) {
   
   socket.on('connect_error', () => showError('Cannot connect to server'));
   socket.on('disconnect', () => showToast('⚠️ Disconnected - reconnecting...'));
-  socket.on('reconnect', () => showToast('✅ Reconnected!'));
+  socket.on('reconnect', () => {
+    showToast('✅ Reconnected!');
+    if (roomId) {
+      socket.emit('join_room', { roomId, name: myName });
+    }
+  });
   
   socket.on('room_update', (info) => updateRoomUI(info));
   
@@ -834,12 +856,20 @@ function initSocket(name, callback) {
     isHost = true;
     updateUI();
     showToast('👑 You are now the host!');
+    // Reset quality for host
+    if (player && playerReady) {
+      player.setPlaybackQuality('auto');
+    }
   });
   
   socket.on('host_changed', () => {
     isHost = false;
     updateUI();
     showToast('Host left - you are now a viewer');
+    // Force low quality for viewer
+    if (player && playerReady) {
+      player.setPlaybackQuality('small');
+    }
   });
   
   socket.on('video_loaded', ({ videoId, currentTime, isPlaying }) => {
@@ -851,25 +881,35 @@ function initSocket(name, callback) {
   
   socket.on('video_play', ({ currentTime }) => {
     if (!isHost && player && playerReady) {
-      const diff = Math.abs(player.getCurrentTime() - currentTime);
-      if (diff > SYNC_THRESHOLD) {
+      const playerTime = player.getCurrentTime();
+      const diff = Math.abs(playerTime - currentTime);
+      
+      if (diff > 1.5) {
         player.seekTo(currentTime, true);
       }
+      
       setTimeout(() => {
-        if (player && playerReady) player.playVideo();
-      }, 50);
+        if (player && playerReady && player.getPlayerState() !== 1) {
+          player.playVideo();
+        }
+      }, 100);
     }
   });
   
   socket.on('video_pause', ({ currentTime }) => {
     if (!isHost && player && playerReady) {
-      const diff = Math.abs(player.getCurrentTime() - currentTime);
-      if (diff > SYNC_THRESHOLD) {
+      const playerTime = player.getCurrentTime();
+      const diff = Math.abs(playerTime - currentTime);
+      
+      if (diff > 1.5) {
         player.seekTo(currentTime, true);
       }
+      
       setTimeout(() => {
-        if (player && playerReady) player.pauseVideo();
-      }, 50);
+        if (player && playerReady && player.getPlayerState() === 1) {
+          player.pauseVideo();
+        }
+      }, 100);
     }
   });
   
@@ -879,14 +919,14 @@ function initSocket(name, callback) {
     }
   });
   
-  socket.on('sync_response', ({ videoId, isPlaying, currentTime }) => {
-    if (!isHost && player && playerReady && videoId === currentVideoId) {
-      const currentTimePlayer = player.getCurrentTime();
-      const diff = Math.abs(currentTimePlayer - currentTime);
+  socket.on('force_sync_response', ({ currentTime, isPlaying }) => {
+    if (!isHost && player && playerReady) {
+      const playerTime = player.getCurrentTime();
+      const diff = Math.abs(playerTime - currentTime);
       
-      if (diff > SYNC_THRESHOLD) {
+      if (diff > 0.8) {
         player.seekTo(currentTime, true);
-        showToast(`🔧 Syncing... (${diff.toFixed(1)}s diff)`, 1500);
+        showToast(`🔧 Syncing...`, 1000);
       }
       
       if (isPlaying && player.getPlayerState() !== 1) {
@@ -1053,12 +1093,27 @@ function enterApp(info) {
     createPlayer(info.videoId, info.currentTime, info.isPlaying);
   }
   
-  // Start sync interval for guests
-  setInterval(() => {
-    if (!isHost && player && playerReady) {
-      socket.emit('sync_request');
-    }
-  }, 3000);
+  // Aggressive sync for viewers - every 1 second!
+  if (!isHost) {
+    viewerForceSyncInterval = setInterval(() => {
+      if (player && playerReady && !isSeeking) {
+        socket.emit('force_sync', { 
+          currentTime: player.getCurrentTime(), 
+          isPlaying: player.getPlayerState() === 1 
+        });
+      }
+    }, 1000);
+  } else {
+    // Host sends sync every 2 seconds
+    setInterval(() => {
+      if (player && playerReady && !isSeeking) {
+        socket.emit('force_sync', { 
+          currentTime: player.getCurrentTime(), 
+          isPlaying: player.getPlayerState() === 1 
+        });
+      }
+    }, 2000);
+  }
 }
 
 // Load video (host only)
@@ -1094,11 +1149,11 @@ function togglePlayPause() {
   if (!isHost || !player || !playerReady) return;
   
   const state = player.getPlayerState();
-  if (state === 1) { // Playing
+  if (state === 1) {
     const currentTime = player.getCurrentTime();
     player.pauseVideo();
     socket.emit('pause_video', { currentTime });
-  } else { // Paused or ended
+  } else {
     const currentTime = player.getCurrentTime();
     player.playVideo();
     socket.emit('play_video', { currentTime });
@@ -1142,7 +1197,7 @@ function updatePlayerUI() {
 // Setup intervals
 setInterval(() => {
   updatePlayerUI();
-}, 500);
+}, 300);
 
 // Event listeners
 document.getElementById('tabCreate').addEventListener('click', () => {
