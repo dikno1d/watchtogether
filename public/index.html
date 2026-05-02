@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Universal Watch Party 🎬</title>
+<title>Watch Party 🎬</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -30,7 +31,7 @@
     height: 100vh;
   }
   
-  /* Lobby Styles */
+  /* Lobby */
   #lobby {
     position: fixed;
     inset: 0;
@@ -69,15 +70,6 @@
     color: var(--muted);
     font-size: 13px;
     margin: 8px 0 32px 0;
-  }
-  
-  .platform-badge {
-    display: inline-block;
-    background: rgba(255,255,255,0.05);
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    margin-top: 8px;
   }
   
   .tabs {
@@ -158,7 +150,7 @@
     text-align: center;
   }
   
-  /* App Styles */
+  /* App */
   #app {
     display: none;
     height: 100vh;
@@ -229,6 +221,7 @@
     border-bottom: 1px solid var(--border);
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
   }
   
   .url-bar input {
@@ -239,6 +232,7 @@
     border-radius: 10px;
     color: var(--text);
     font-size: 13px;
+    min-width: 200px;
   }
   
   .url-bar button {
@@ -251,10 +245,46 @@
     cursor: pointer;
   }
   
+  .url-bar button:hover {
+    background: var(--accent2);
+  }
+  
+  .video-type-buttons {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  
+  .type-btn {
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  
+  .type-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  
+  .type-btn:hover:not(.active) {
+    background: var(--sur2);
+    color: var(--text);
+  }
+  
   .player-container {
     flex: 1;
     position: relative;
     background: #000;
+    min-height: 300px;
   }
   
   .video-wrapper {
@@ -298,8 +328,8 @@
   }
   
   .control-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
@@ -308,6 +338,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 16px;
+    transition: 0.2s;
+  }
+  
+  .control-btn:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
   }
   
   .control-btn:disabled {
@@ -325,8 +362,8 @@
   
   .seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
@@ -336,6 +373,23 @@
     font-size: 12px;
     font-family: monospace;
     color: var(--muted);
+  }
+  
+  .volume-slider {
+    width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--sur2);
+    border-radius: 2px;
+  }
+  
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
   }
   
   /* Sidebar */
@@ -373,6 +427,7 @@
     align-items: center;
     gap: 8px;
     font-size: 13px;
+    padding: 4px;
   }
   
   .member-avatar {
@@ -494,13 +549,17 @@
     left: 50%;
     transform: translateX(-50%);
     background: var(--sur2);
-    padding: 8px 16px;
+    padding: 10px 20px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 13px;
     z-index: 1000;
     opacity: 0;
     transition: 0.2s;
     pointer-events: none;
+    white-space: nowrap;
+    max-width: 90vw;
+    white-space: normal;
+    text-align: center;
   }
   
   #toast.show {
@@ -509,11 +568,17 @@
   
   @media (max-width: 700px) {
     .sidebar { width: 240px; }
+    .message-bubble { max-width: 160px; }
   }
   
   @media (max-width: 550px) {
     .main { flex-direction: column; }
-    .sidebar { width: 100%; max-height: 250px; }
+    .sidebar { width: 100%; max-height: 280px; }
+    .url-bar { flex-direction: column; }
+    .url-bar input { width: 100%; }
+    .url-bar button { width: 100%; }
+    .controls { gap: 8px; }
+    .control-btn { width: 36px; height: 36px; }
   }
 </style>
 </head>
@@ -521,8 +586,8 @@
 
 <div id="lobby">
   <div class="card">
-    <div class="logo">Universal Watch Party</div>
-    <p class="sub">Watch ANY video with friends — YouTube, Vimeo, Twitch, MP4, and more!</p>
+    <div class="logo">Watch Party</div>
+    <p class="sub">Watch videos with friends — perfectly synced!</p>
     <div class="tabs">
       <button class="tab active" id="tabCreate">Create Room</button>
       <button class="tab" id="tabJoin">Join Room</button>
@@ -551,8 +616,8 @@
 
 <div id="app">
   <div class="topbar">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <span style="font-weight: 800;">🎬 Universal Watch Party</span>
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <span style="font-weight: 800;">🎬 Watch Party</span>
       <div class="room-info">
         <span>Room: <strong id="roomCode">------</strong></span>
         <button class="copy-btn" id="copyRoomCode">📋</button>
@@ -565,11 +630,18 @@
   <div class="main">
     <div class="video-panel">
       <div class="url-bar" id="hostControls">
-        <input type="text" id="videoUrl" placeholder="Paste ANY video URL (YouTube, Vimeo, Twitch, MP4, etc.)">
+        <input type="text" id="videoUrl" placeholder="Paste video URL (YouTube, MP4, etc.)">
         <button id="loadVideoBtn">🎬 Load Video</button>
       </div>
       <div class="url-bar" id="guestControls" style="display: none;">
         <span style="color: var(--muted);">⏳ Waiting for host to load a video...</span>
+      </div>
+      
+      <div class="video-type-buttons" id="videoTypeSelector">
+        <button class="type-btn active" data-type="youtube">YouTube</button>
+        <button class="type-btn" data-type="vimeo">Vimeo</button>
+        <button class="type-btn" data-type="mp4">MP4 Video</button>
+        <button class="type-btn" data-type="embed">Embed Link</button>
       </div>
       
       <div class="player-container">
@@ -577,8 +649,8 @@
           <div class="placeholder" id="placeholder">
             <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
             <p>No video loaded</p>
-            <p style="font-size: 12px; margin-top: 8px;">Host can load any video from any platform!</p>
-            <div class="platform-badge">Supports: YouTube, Vimeo, Dailymotion, Twitch, MP4, WebM, and more</div>
+            <p style="font-size: 12px; margin-top: 8px;">Host: Paste a URL and click Load</p>
+            <p style="font-size: 11px; margin-top: 8px; color: var(--muted);">Supports: YouTube, Vimeo, MP4, WebM, and any embeddable video</p>
           </div>
         </div>
       </div>
@@ -589,7 +661,7 @@
         <span class="time" id="timeDisplay">0:00 / 0:00</span>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span>🔊</span>
-          <input type="range" id="volumeSlider" min="0" max="100" value="80" style="width: 80px;">
+          <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
         </div>
       </div>
     </div>
@@ -620,14 +692,15 @@ let myId;
 let myName;
 let roomId;
 let isHost = false;
-let currentVideo = null;
+let currentVideoType = 'youtube';
 let currentPlayer = null;
+let playerReady = false;
 let isSeeking = false;
 let syncInterval;
-let playerReady = false;
+let currentVideoUrl = null;
 
 // Helper functions
-function showToast(msg, duration = 2500) {
+function showToast(msg, duration = 3000) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -638,107 +711,142 @@ function showError(msg) {
   document.getElementById('lobbyError').textContent = msg;
 }
 
-// Detect video type from URL
-async function detectVideo(url) {
-  try {
-    const response = await fetch(`/api/video-info?url=${encodeURIComponent(url)}`);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Detection error:', error);
-    return null;
-  }
+function formatTime(seconds) {
+  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Render video player based on type
-function renderVideo(videoInfo, currentTime = 0, isPlaying = false) {
+// Extract video ID from YouTube URL
+function extractYouTubeId(url) {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/,
+    /youtube\.com\/embed\/([^?]+)/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+// Extract Vimeo ID
+function extractVimeoId(url) {
+  const match = url.match(/vimeo\.com\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+// Render video based on type
+function renderVideo(url, type, currentTime = 0, isPlaying = false) {
   const wrapper = document.getElementById('videoWrapper');
   const placeholder = document.getElementById('placeholder');
   
   // Clear existing player
   if (currentPlayer) {
-    if (currentPlayer.destroy) currentPlayer.destroy();
-    if (currentPlayer.pause) currentPlayer.pause();
     wrapper.innerHTML = '';
+    currentPlayer = null;
   }
   
   placeholder.style.display = 'none';
+  playerReady = false;
   
-  switch (videoInfo.platform) {
-    case 'youtube':
-    case 'vimeo':
-    case 'dailymotion':
-    case 'twitch':
-      // Embed iframe
-      const iframe = document.createElement('iframe');
-      iframe.src = videoInfo.embedUrl + (videoInfo.platform === 'youtube' ? `?start=${Math.floor(currentTime)}&autoplay=${isPlaying ? 1 : 0}` : '');
-      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-      iframe.allowFullscreen = true;
-      wrapper.appendChild(iframe);
-      currentPlayer = iframe;
-      playerReady = true;
-      break;
-      
-    case 'direct':
-      // Native video player
-      const video = document.createElement('video');
-      video.src = videoInfo.directUrl;
-      video.currentTime = currentTime;
-      video.controls = false;
-      video.autoplay = isPlaying;
-      video.style.width = '100%';
-      video.style.height = '100%';
-      video.addEventListener('loadedmetadata', () => {
+  try {
+    switch(type) {
+      case 'youtube':
+        const youtubeId = extractYouTubeId(url);
+        if (!youtubeId) {
+          showToast('❌ Invalid YouTube URL');
+          return false;
+        }
+        const youtubeIframe = document.createElement('iframe');
+        youtubeIframe.src = `https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&controls=0&start=${Math.floor(currentTime)}&autoplay=${isPlaying ? 1 : 0}`;
+        youtubeIframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+        youtubeIframe.allowFullscreen = true;
+        wrapper.appendChild(youtubeIframe);
+        currentPlayer = youtubeIframe;
         playerReady = true;
-        if (currentTime > 0) video.currentTime = currentTime;
-      });
-      video.addEventListener('play', () => {
-        if (isHost) socket.emit('play_video', { currentTime: video.currentTime });
-      });
-      video.addEventListener('pause', () => {
-        if (isHost) socket.emit('pause_video', { currentTime: video.currentTime });
-      });
-      video.addEventListener('seeked', () => {
-        if (isHost) socket.emit('seek_video', { currentTime: video.currentTime });
-        isSeeking = false;
-      });
-      wrapper.appendChild(video);
-      currentPlayer = video;
-      break;
-      
-    default:
-      // Generic - try to embed
-      const genericIframe = document.createElement('iframe');
-      genericIframe.src = videoInfo.url;
-      genericIframe.allowFullscreen = true;
-      wrapper.appendChild(genericIframe);
-      currentPlayer = genericIframe;
-      playerReady = true;
+        break;
+        
+      case 'vimeo':
+        const vimeoId = extractVimeoId(url);
+        if (!vimeoId) {
+          showToast('❌ Invalid Vimeo URL');
+          return false;
+        }
+        const vimeoIframe = document.createElement('iframe');
+        vimeoIframe.src = `https://player.vimeo.com/video/${vimeoId}?autoplay=${isPlaying ? 1 : 0}#t=${currentTime}`;
+        vimeoIframe.allow = 'autoplay; fullscreen';
+        vimeoIframe.allowFullscreen = true;
+        wrapper.appendChild(vimeoIframe);
+        currentPlayer = vimeoIframe;
+        playerReady = true;
+        break;
+        
+      case 'mp4':
+        const video = document.createElement('video');
+        video.src = url;
+        video.currentTime = currentTime;
+        video.autoplay = isPlaying;
+        video.controls = false;
+        video.style.width = '100%';
+        video.style.height = '100%';
+        
+        video.addEventListener('loadedmetadata', () => {
+          playerReady = true;
+          if (currentTime > 0) video.currentTime = currentTime;
+        });
+        
+        video.addEventListener('play', () => {
+          if (isHost) socket.emit('play_video', { currentTime: video.currentTime });
+        });
+        
+        video.addEventListener('pause', () => {
+          if (isHost) socket.emit('pause_video', { currentTime: video.currentTime });
+        });
+        
+        video.addEventListener('seeked', () => {
+          if (isHost && isSeeking) {
+            socket.emit('seek_video', { currentTime: video.currentTime });
+            isSeeking = false;
+          }
+        });
+        
+        video.addEventListener('timeupdate', () => {
+          if (!isSeeking && playerReady) {
+            const seekBar = document.getElementById('seekBar');
+            const timeDisplay = document.getElementById('timeDisplay');
+            if (video.duration) {
+              const percent = (video.currentTime / video.duration) * 100;
+              seekBar.value = percent;
+              timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+            }
+          }
+        });
+        
+        wrapper.appendChild(video);
+        currentPlayer = video;
+        break;
+        
+      case 'embed':
+        const embedIframe = document.createElement('iframe');
+        embedIframe.src = url;
+        embedIframe.allowFullscreen = true;
+        wrapper.appendChild(embedIframe);
+        currentPlayer = embedIframe;
+        playerReady = true;
+        break;
+    }
+    
+    showToast(`✅ Video loaded (${type.toUpperCase()})`);
+    return true;
+    
+  } catch (error) {
+    console.error('Render error:', error);
+    showToast('❌ Failed to load video');
+    placeholder.style.display = 'flex';
+    return false;
   }
-  
-  showToast(`✅ Loaded: ${videoInfo.title || videoInfo.platform || 'Video'}`);
-}
-
-// Control handlers for native video
-function updatePlayerUI() {
-  if (!currentPlayer || currentPlayer.tagName !== 'VIDEO') return;
-  
-  const video = currentPlayer;
-  const seekBar = document.getElementById('seekBar');
-  const timeDisplay = document.getElementById('timeDisplay');
-  
-  if (video.duration && !isSeeking) {
-    const percent = (video.currentTime / video.duration) * 100;
-    seekBar.value = percent;
-    timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
-  }
-}
-
-function formatTime(seconds) {
-  if (isNaN(seconds)) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 // Socket event handlers
@@ -752,23 +860,26 @@ function initSocket(name, callback) {
   });
   
   socket.on('connect_error', () => showError('Cannot connect to server'));
-  socket.on('disconnect', () => showToast('Disconnected from server'));
+  socket.on('disconnect', () => showToast('⚠️ Disconnected from server'));
   
   socket.on('room_update', (info) => updateRoomUI(info));
+  
   socket.on('you_are_host', () => {
     isHost = true;
     updateUI();
     showToast('👑 You are now the host!');
   });
+  
   socket.on('host_changed', () => {
     isHost = false;
     updateUI();
     showToast('Host left - you are now a viewer');
   });
   
-  socket.on('video_loaded', ({ video, currentTime, isPlaying }) => {
-    currentVideo = video;
-    renderVideo(video, currentTime, isPlaying);
+  socket.on('video_loaded', ({ videoUrl, videoType, currentTime, isPlaying }) => {
+    currentVideoUrl = videoUrl;
+    currentVideoType = videoType;
+    renderVideo(videoUrl, videoType, currentTime, isPlaying);
   });
   
   socket.on('video_play', ({ currentTime }) => {
@@ -814,6 +925,7 @@ function updateUI() {
   const hostBadge = document.getElementById('hostBadge');
   const playPauseBtn = document.getElementById('playPauseBtn');
   const seekBar = document.getElementById('seekBar');
+  const typeSelector = document.getElementById('videoTypeSelector');
   
   if (isHost) {
     hostControls.style.display = 'flex';
@@ -821,12 +933,14 @@ function updateUI() {
     hostBadge.style.display = 'inline-block';
     playPauseBtn.disabled = false;
     seekBar.disabled = false;
+    typeSelector.style.display = 'flex';
   } else {
     hostControls.style.display = 'none';
     guestControls.style.display = 'flex';
     hostBadge.style.display = 'none';
     playPauseBtn.disabled = true;
     seekBar.disabled = true;
+    typeSelector.style.display = 'none';
   }
 }
 
@@ -956,22 +1070,22 @@ function enterApp(info) {
   updateRoomUI(info);
   updateUI();
   
-  if (info.video) {
-    currentVideo = info.video;
-    renderVideo(info.video, info.currentTime, info.isPlaying);
+  if (info.videoUrl) {
+    currentVideoUrl = info.videoUrl;
+    currentVideoType = info.videoType || 'youtube';
+    renderVideo(info.videoUrl, currentVideoType, info.currentTime, info.isPlaying);
   }
   
-  // Start sync interval for native video
+  // Sync interval for guests
   setInterval(() => {
     if (!isHost && currentPlayer && currentPlayer.tagName === 'VIDEO') {
       socket.emit('sync_request');
     }
-    updatePlayerUI();
-  }, 2000);
+  }, 3000);
 }
 
 // Load video (host only)
-async function loadVideo() {
+function loadVideo() {
   if (!isHost) return;
   
   const url = document.getElementById('videoUrl').value.trim();
@@ -980,22 +1094,54 @@ async function loadVideo() {
     return;
   }
   
-  showToast('Detecting video source...');
-  const videoInfo = await detectVideo(url);
-  
-  if (!videoInfo || videoInfo.error) {
-    showToast('❌ Could not load this video. Try a different URL');
+  // Validate based on type
+  if (currentVideoType === 'youtube' && !extractYouTubeId(url)) {
+    showToast('❌ Invalid YouTube URL');
     return;
   }
   
-  socket.emit('load_video', { videoInfo }, (res) => {
+  if (currentVideoType === 'vimeo' && !extractVimeoId(url)) {
+    showToast('❌ Invalid Vimeo URL');
+    return;
+  }
+  
+  if (currentVideoType === 'mp4' && !url.match(/\.(mp4|webm|mov|mkv)(\?|$)/i)) {
+    showToast('⚠️ Make sure this is a direct video file URL (.mp4, .webm, etc.)');
+  }
+  
+  // Test render locally first
+  const testRender = renderVideo(url, currentVideoType, 0, false);
+  if (!testRender) return;
+  
+  // Send to server
+  socket.emit('load_video', { videoUrl: url, videoType: currentVideoType }, (res) => {
     if (res.success) {
-      showToast('✅ Video loaded!');
+      showToast('✅ Video loaded for everyone!');
+      currentVideoUrl = url;
     } else {
-      showToast('❌ Failed to load video');
+      showToast('❌ Failed to load video on server');
     }
   });
 }
+
+// Video type selector
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentVideoType = btn.dataset.type;
+    
+    // Update placeholder text
+    const placeholder = document.getElementById('placeholder');
+    if (placeholder.style.display !== 'none') {
+      const urlInput = document.getElementById('videoUrl');
+      if (currentVideoType === 'youtube') urlInput.placeholder = 'Paste YouTube URL (e.g., https://youtube.com/watch?v=...)';
+      else if (currentVideoType === 'vimeo') urlInput.placeholder = 'Paste Vimeo URL (e.g., https://vimeo.com/123456789)';
+      else if (currentVideoType === 'mp4') urlInput.placeholder = 'Paste direct MP4/Video URL (e.g., https://example.com/video.mp4)';
+      else urlInput.placeholder = 'Paste embed URL (e.g., https://... embed link)';
+    }
+  });
+});
 
 // Event listeners
 document.getElementById('tabCreate').addEventListener('click', () => {
@@ -1003,6 +1149,7 @@ document.getElementById('tabCreate').addEventListener('click', () => {
   document.getElementById('joinForm').style.display = 'none';
   document.getElementById('tabCreate').classList.add('active');
   document.getElementById('tabJoin').classList.remove('active');
+  document.getElementById('lobbyError').textContent = '';
 });
 
 document.getElementById('tabJoin').addEventListener('click', () => {
@@ -1010,13 +1157,17 @@ document.getElementById('tabJoin').addEventListener('click', () => {
   document.getElementById('joinForm').style.display = 'block';
   document.getElementById('tabJoin').classList.add('active');
   document.getElementById('tabCreate').classList.remove('active');
+  document.getElementById('lobbyError').textContent = '';
 });
 
 document.getElementById('createRoomBtn').addEventListener('click', createRoom);
 document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
+
 document.getElementById('copyRoomCode').addEventListener('click', () => {
-  navigator.clipboard.writeText(roomId);
-  showToast('Room code copied!');
+  if (roomId) {
+    navigator.clipboard.writeText(roomId);
+    showToast('Room code copied!');
+  }
 });
 
 document.getElementById('loadVideoBtn').addEventListener('click', loadVideo);
@@ -1054,6 +1205,7 @@ document.getElementById('volumeSlider').addEventListener('input', (e) => {
   }
 });
 
+// Chat
 document.getElementById('sendBtn').addEventListener('click', () => {
   const input = document.getElementById('chatMessage');
   const text = input.value.trim();
