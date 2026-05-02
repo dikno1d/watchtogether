@@ -2,11 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="theme-color" content="#0a0a0f"/>
-<title>Sync Watch Party 🎬</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Watch Party - No Buffer 🎬</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
@@ -23,8 +21,6 @@
     --border: rgba(255,255,255,0.07);
     --success: #10b981;
     --danger: #ef4444;
-    --header-height: 56px;
-    --sidebar-width: 300px;
   }
   
   body {
@@ -33,11 +29,8 @@
     color: var(--text);
     overflow: hidden;
     height: 100vh;
-    width: 100%;
-    position: fixed;
   }
   
-  /* Lobby */
   #lobby {
     position: fixed;
     inset: 0;
@@ -46,29 +39,26 @@
     align-items: center;
     justify-content: center;
     z-index: 100;
-    padding: 20px;
-    overflow-y: auto;
   }
   
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 28px;
+    border-radius: 24px;
     padding: 40px;
-    width: 440px;
-    max-width: 100%;
+    width: 420px;
+    max-width: 90vw;
     animation: slideUp 0.4s ease;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
   }
   
   @keyframes slideUp {
-    from { opacity: 0; transform: translateY(30px); }
+    from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
   }
   
   .logo {
     font-family: 'Syne', sans-serif;
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 800;
     background: linear-gradient(135deg, #a78bfa, #7c3aed);
     -webkit-background-clip: text;
@@ -79,7 +69,6 @@
     color: var(--muted);
     font-size: 13px;
     margin: 8px 0 32px 0;
-    line-height: 1.5;
   }
   
   .tabs {
@@ -87,31 +76,29 @@
     gap: 8px;
     background: rgba(255,255,255,0.05);
     padding: 4px;
-    border-radius: 16px;
-    margin-bottom: 28px;
+    border-radius: 12px;
+    margin-bottom: 24px;
   }
   
   .tab {
     flex: 1;
-    padding: 12px;
+    padding: 10px;
     background: transparent;
     border: none;
     color: var(--muted);
     font-weight: 600;
-    border-radius: 12px;
+    border-radius: 8px;
     cursor: pointer;
     transition: 0.2s;
-    font-size: 14px;
   }
   
   .tab.active {
     background: var(--accent);
     color: white;
-    box-shadow: 0 2px 8px rgba(124,58,237,0.3);
   }
   
   .field {
-    margin-bottom: 18px;
+    margin-bottom: 16px;
   }
   
   .field label {
@@ -119,45 +106,40 @@
     font-size: 11px;
     text-transform: uppercase;
     color: var(--muted);
-    margin-bottom: 8px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    margin-bottom: 6px;
   }
   
   .field input {
     width: 100%;
-    padding: 14px;
+    padding: 12px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 12px;
     color: var(--text);
-    font-size: 15px;
+    font-size: 14px;
     outline: none;
-    transition: 0.2s;
   }
   
   .field input:focus {
     border-color: var(--accent);
-    background: rgba(124,58,237,0.1);
   }
   
   .btn {
     width: 100%;
-    padding: 14px;
+    padding: 12px;
     background: var(--accent);
     border: none;
-    border-radius: 14px;
+    border-radius: 12px;
     color: white;
-    font-weight: 700;
-    font-size: 15px;
+    font-weight: 600;
+    font-size: 14px;
     cursor: pointer;
     transition: 0.2s;
-    margin-top: 8px;
   }
   
   .btn:hover {
     background: var(--accent2);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
   
   .err {
@@ -167,7 +149,6 @@
     text-align: center;
   }
   
-  /* App */
   #app {
     display: none;
     height: 100vh;
@@ -178,47 +159,26 @@
     display: flex;
   }
   
-  /* Top Bar */
   .topbar {
-    height: var(--header-height);
+    height: 56px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
-    flex-shrink: 0;
-    z-index: 10;
-    gap: 10px;
-  }
-  
-  .topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    padding: 0 20px;
     flex-wrap: wrap;
-    flex: 1;
-  }
-  
-  .app-logo {
-    font-weight: 800;
-    font-size: 16px;
-    white-space: nowrap;
+    gap: 10px;
   }
   
   .room-info {
-    background: rgba(255,255,255,0.08);
-    padding: 5px 12px;
-    border-radius: 24px;
+    background: rgba(255,255,255,0.05);
+    padding: 6px 12px;
+    border-radius: 20px;
     font-size: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
-  }
-  
-  .room-code-text {
-    font-weight: 700;
-    letter-spacing: 1px;
   }
   
   .copy-btn {
@@ -226,13 +186,7 @@
     border: none;
     color: var(--muted);
     cursor: pointer;
-    font-size: 13px;
-    padding: 4px;
-    transition: 0.2s;
-  }
-  
-  .copy-btn:active {
-    transform: scale(0.95);
+    font-size: 14px;
   }
   
   .host-badge {
@@ -240,62 +194,25 @@
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 10px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  
-  .sync-status {
-    font-size: 10px;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(255,255,255,0.05);
-    padding: 4px 10px;
-    border-radius: 20px;
-  }
-  
-  .sync-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--success);
-    animation: pulse 2s infinite;
-  }
-  
-  .sync-dot.warning {
-    background: var(--danger);
-  }
-  
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    font-weight: 600;
   }
   
   .member-count {
     font-size: 12px;
     color: var(--muted);
-    background: rgba(255,255,255,0.05);
-    padding: 4px 10px;
-    border-radius: 20px;
-    white-space: nowrap;
   }
   
-  /* Main Layout */
   .main {
     display: flex;
     flex: 1;
     overflow: hidden;
-    position: relative;
   }
   
-  /* Video Panel */
   .video-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
     background: #000;
-    min-width: 0;
   }
   
   .url-bar {
@@ -309,47 +226,35 @@
   
   .url-bar input {
     flex: 1;
-    padding: 12px 14px;
+    padding: 10px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 10px;
     color: var(--text);
-    font-size: 14px;
-    min-width: 180px;
-  }
-  
-  .url-bar input:focus {
-    border-color: var(--accent);
-    outline: none;
+    font-size: 13px;
+    min-width: 200px;
   }
   
   .url-bar button {
-    padding: 12px 24px;
+    padding: 10px 20px;
     background: var(--accent);
     border: none;
-    border-radius: 14px;
+    border-radius: 10px;
     color: white;
-    font-weight: 700;
-    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
     transition: 0.2s;
-    white-space: nowrap;
   }
   
-  .url-bar button:active {
-    transform: scale(0.97);
-  }
-  
-  .url-bar button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .url-bar button:hover {
+    background: var(--accent2);
   }
   
   .player-container {
     flex: 1;
     position: relative;
     background: #000;
-    min-height: 200px;
+    min-height: 300px;
   }
   
   .player-wrapper {
@@ -371,12 +276,10 @@
     color: var(--muted);
     z-index: 10;
     background: #000;
-    padding: 24px;
-    border-radius: 20px;
-    pointer-events: none;
+    padding: 20px;
+    border-radius: 12px;
   }
   
-  /* Controls */
   .controls {
     display: flex;
     align-items: center;
@@ -385,28 +288,27 @@
     background: var(--surface);
     border-top: 1px solid var(--border);
     flex-wrap: wrap;
-    flex-shrink: 0;
   }
   
   .control-btn {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
     color: var(--text);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 16px;
     transition: 0.2s;
-    flex-shrink: 0;
   }
   
-  .control-btn:active {
-    transform: scale(0.95);
+  .control-btn:hover:not(:disabled) {
     background: var(--accent);
+    border-color: var(--accent);
+    transform: scale(1.05);
   }
   
   .control-btn:disabled {
@@ -420,13 +322,12 @@
     border-radius: 3px;
     background: var(--sur2);
     -webkit-appearance: none;
-    min-width: 80px;
   }
   
   .seek-bar::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
@@ -450,68 +351,46 @@
   
   .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: var(--accent);
     cursor: pointer;
   }
   
-  .fullscreen-btn {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 10px;
-    border-radius: 12px;
-    transition: 0.2s;
-    width: 44px;
-    height: 44px;
+  .sync-status {
+    font-size: 11px;
+    color: var(--muted);
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
   }
   
-  .fullscreen-btn:active {
-    transform: scale(0.95);
-    background: var(--accent);
+  .sync-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
   }
   
-  /* Sidebar */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  
   .sidebar {
-    width: var(--sidebar-width);
+    width: 280px;
     background: var(--surface);
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;
-  }
-  
-  .sidebar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .close-sidebar-btn {
-    background: rgba(255,255,255,0.08);
-    border: none;
-    color: var(--muted);
-    font-size: 20px;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 10px;
-    transition: 0.2s;
-    display: none;
   }
   
   .members-section {
     padding: 16px;
     border-bottom: 1px solid var(--border);
-    max-height: 180px;
+    max-height: 200px;
     overflow-y: auto;
   }
   
@@ -520,52 +399,46 @@
     text-transform: uppercase;
     color: var(--muted);
     margin-bottom: 12px;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-weight: 600;
   }
   
   .member-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
   
   .member-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-size: 13px;
-    padding: 6px 8px;
-    border-radius: 12px;
+    padding: 4px;
+    border-radius: 8px;
     transition: background 0.2s;
   }
   
+  .member-item:hover {
+    background: rgba(255,255,255,0.05);
+  }
+  
   .member-avatar {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-  
-  .member-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-weight: 600;
+    font-size: 12px;
   }
   
   .host-tag {
     font-size: 9px;
     background: var(--accent);
-    padding: 3px 8px;
-    border-radius: 12px;
-    flex-shrink: 0;
-    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: auto;
   }
   
   .chat-section {
@@ -581,19 +454,13 @@
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
   
   .message {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    animation: fadeIn 0.2s ease;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
   }
   
   .message.system {
@@ -603,7 +470,7 @@
   .system-text {
     font-size: 11px;
     background: rgba(255,255,255,0.05);
-    padding: 5px 14px;
+    padding: 4px 12px;
     border-radius: 20px;
     color: var(--muted);
   }
@@ -613,11 +480,10 @@
     align-items: center;
     gap: 8px;
     font-size: 11px;
-    padding: 0 4px;
   }
   
   .message-name {
-    font-weight: 700;
+    font-weight: 600;
   }
   
   .message-time {
@@ -626,13 +492,12 @@
   }
   
   .message-bubble {
-    background: rgba(255,255,255,0.08);
-    padding: 10px 14px;
-    border-radius: 16px;
+    background: rgba(255,255,255,0.05);
+    padding: 8px 12px;
+    border-radius: 12px;
     font-size: 13px;
-    max-width: 240px;
+    max-width: 220px;
     word-wrap: break-word;
-    line-height: 1.4;
   }
   
   .message.mine {
@@ -645,42 +510,34 @@
   
   .chat-input {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     padding: 12px;
     border-top: 1px solid var(--border);
-    flex-shrink: 0;
-    background: var(--surface);
   }
   
   .chat-input input {
     flex: 1;
-    padding: 12px;
-    background: rgba(255,255,255,0.08);
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
-    border-radius: 28px;
+    border-radius: 20px;
     color: var(--text);
     outline: none;
-    font-size: 14px;
-  }
-  
-  .chat-input input:focus {
-    border-color: var(--accent);
   }
   
   .chat-input button {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: var(--accent);
     border: none;
     color: white;
     cursor: pointer;
     transition: 0.2s;
-    flex-shrink: 0;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  }
+  
+  .chat-input button:hover {
+    background: var(--accent2);
   }
   
   #toast {
@@ -690,7 +547,7 @@
     transform: translateX(-50%);
     background: var(--sur2);
     padding: 10px 20px;
-    border-radius: 28px;
+    border-radius: 20px;
     font-size: 13px;
     z-index: 1000;
     opacity: 0;
@@ -698,150 +555,27 @@
     pointer-events: none;
     text-align: center;
     max-width: 90vw;
-    font-weight: 500;
   }
   
   #toast.show {
     opacity: 1;
   }
   
-  /* Mobile Styles */
-  @media (max-width: 768px) {
-    .sidebar {
-      position: fixed;
-      right: -100%;
-      top: 0;
-      bottom: 0;
-      width: 85%;
-      max-width: 320px;
-      z-index: 200;
-      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: -5px 0 30px rgba(0,0,0,0.5);
-      border-left: none;
-      border-radius: 20px 0 0 20px;
-    }
-    
-    .sidebar.open {
-      right: 0;
-    }
-    
-    .close-sidebar-btn {
-      display: flex;
-    }
-    
-    .chat-toggle {
-      display: flex;
-      position: fixed;
-      bottom: 20px;
-      right: 16px;
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: none;
-      color: white;
-      font-size: 24px;
-      cursor: pointer;
-      z-index: 150;
-      box-shadow: 0 4px 15px rgba(124,58,237,0.4);
-      align-items: center;
-      justify-content: center;
-      transition: 0.2s;
-    }
-    
-    .controls {
-      gap: 8px;
-      padding: 10px 12px;
-    }
-    
-    .control-btn {
-      width: 40px;
-      height: 40px;
-      font-size: 16px;
-    }
-    
-    .fullscreen-btn {
-      width: 40px;
-      height: 40px;
-      font-size: 16px;
-    }
-    
-    .time {
-      min-width: 70px;
-      font-size: 11px;
-    }
-    
-    .url-bar {
-      flex-direction: column;
-    }
-    
-    .url-bar input {
-      width: 100%;
-    }
-    
-    .url-bar button {
-      width: 100%;
-    }
-    
-    .member-count {
-      font-size: 11px;
-    }
-    
-    .message-bubble {
-      max-width: 180px;
-    }
+  @media (max-width: 700px) {
+    .sidebar { width: 240px; }
+    .message-bubble { max-width: 160px; }
+    .time { min-width: 80px; font-size: 11px; }
+    .controls { gap: 8px; }
   }
   
-  @media (min-width: 769px) {
-    .chat-toggle {
-      display: none;
-    }
-    
-    .sidebar {
-      position: relative;
-      right: auto !important;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .control-btn {
-      width: 36px;
-      height: 36px;
-      font-size: 14px;
-    }
-    
-    .fullscreen-btn {
-      width: 36px;
-      height: 36px;
-      font-size: 14px;
-    }
-    
-    .time {
-      min-width: 60px;
-      font-size: 10px;
-    }
-    
-    .chat-toggle {
-      width: 48px;
-      height: 48px;
-      font-size: 20px;
-    }
-  }
-  
-  /* Fullscreen */
-  .player-container:fullscreen {
-    background: #000;
-  }
-  
-  .player-container:fullscreen .controls,
-  .player-container:fullscreen .url-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background: rgba(18, 18, 26, 0.95);
-    backdrop-filter: blur(10px);
+  @media (max-width: 550px) {
+    .main { flex-direction: column; }
+    .sidebar { width: 100%; max-height: 280px; }
+    .url-bar { flex-direction: column; }
+    .url-bar input { width: 100%; }
+    .url-bar button { width: 100%; }
+    .topbar { flex-direction: column; align-items: flex-start; height: auto; padding: 12px; }
+    .member-count { align-self: flex-end; }
   }
 </style>
 </head>
@@ -849,8 +583,8 @@
 
 <div id="lobby">
   <div class="card">
-    <div class="logo">Sync Watch Party</div>
-    <p class="sub">Watch YouTube with friends — perfectly synced!</p>
+    <div class="logo">Watch Party</div>
+    <p class="sub">Perfectly synced YouTube - No buffering for viewers!</p>
     <div class="tabs">
       <button class="tab active" id="tabCreate">Create Room</button>
       <button class="tab" id="tabJoin">Join Room</button>
@@ -858,18 +592,18 @@
     <div id="createForm">
       <div class="field">
         <label>Your Name</label>
-        <input type="text" id="createName" placeholder="e.g. Alex" maxlength="24" autocomplete="off">
+        <input type="text" id="createName" placeholder="e.g. Alex" maxlength="24">
       </div>
       <button class="btn" id="createRoomBtn">🚀 Create Room</button>
     </div>
     <div id="joinForm" style="display: none;">
       <div class="field">
         <label>Your Name</label>
-        <input type="text" id="joinName" placeholder="e.g. Sam" maxlength="24" autocomplete="off">
+        <input type="text" id="joinName" placeholder="e.g. Sam" maxlength="24">
       </div>
       <div class="field">
         <label>Room Code</label>
-        <input type="text" id="joinCode" placeholder="e.g. AB12CD" maxlength="6" style="text-transform: uppercase;" autocomplete="off">
+        <input type="text" id="joinCode" placeholder="e.g. AB12CD" maxlength="6" style="text-transform: uppercase;">
       </div>
       <button class="btn" id="joinRoomBtn">🔗 Join Room</button>
     </div>
@@ -879,15 +613,15 @@
 
 <div id="app">
   <div class="topbar">
-    <div class="topbar-left">
-      <span class="app-logo">🎬 Sync Party</span>
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <span style="font-weight: 800;">🎬 Watch Party</span>
       <div class="room-info">
-        <span>Room: <strong class="room-code-text" id="roomCode">------</strong></span>
+        <span>Room: <strong id="roomCode">------</strong></span>
         <button class="copy-btn" id="copyRoomCode">📋</button>
       </div>
       <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
-      <div class="sync-status">
-        <div class="sync-dot" id="syncDot"></div>
+      <div class="sync-status" id="syncStatus">
+        <div class="sync-dot"></div>
         <span id="syncText">Synced</span>
       </div>
     </div>
@@ -897,50 +631,45 @@
   <div class="main">
     <div class="video-panel">
       <div class="url-bar" id="hostControls">
-        <input type="text" id="videoUrl" placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)" autocomplete="off">
+        <input type="text" id="videoUrl" placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)">
         <button id="loadVideoBtn">🎬 Load Video</button>
       </div>
       <div class="url-bar" id="guestControls" style="display: none;">
         <span style="color: var(--muted);">⏳ Waiting for host to load a video...</span>
       </div>
       
-      <div class="player-container" id="playerContainer">
+      <div class="player-container">
         <div class="player-wrapper">
           <div id="youtube-player"></div>
         </div>
         <div class="placeholder" id="placeholder">
-          <div style="font-size: 56px; margin-bottom: 16px;">🎬</div>
-          <p style="font-size: 16px; font-weight: 600;">No video loaded</p>
-          <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Host: Paste a YouTube URL and click Load</p>
+          <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
+          <p>No video loaded</p>
+          <p style="font-size: 12px; margin-top: 8px;">Host: Paste a YouTube URL and click Load</p>
         </div>
       </div>
       
       <div class="controls">
         <button class="control-btn" id="playPauseBtn" disabled>▶</button>
-        <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0" step="0.1" disabled>
+        <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0" disabled>
         <span class="time" id="timeDisplay">0:00 / 0:00</span>
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
           <span>🔊</span>
           <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
         </div>
-        <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">⛶</button>
       </div>
     </div>
     
-    <div class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="section-title">💬 Chat & Members</div>
-        <button class="close-sidebar-btn" id="closeSidebarBtn">✕</button>
-      </div>
+    <div class="sidebar">
       <div class="members-section">
         <div class="section-title">👥 Members</div>
         <div class="member-list" id="membersList"></div>
       </div>
       <div class="chat-section">
-        <div class="section-title" style="padding: 0 16px;">💬 Chat</div>
+        <div class="section-title" style="padding: 0 12px;">💬 Chat</div>
         <div class="messages" id="messages"></div>
         <div class="chat-input">
-          <input type="text" id="chatMessage" placeholder="Say something..." maxlength="300" autocomplete="off">
+          <input type="text" id="chatMessage" placeholder="Say something..." maxlength="300">
           <button id="sendBtn">➤</button>
         </div>
       </div>
@@ -948,7 +677,6 @@
   </div>
 </div>
 
-<button class="chat-toggle" id="chatToggleBtn" style="display: none;">💬</button>
 <div id="toast"></div>
 
 <script>
@@ -962,14 +690,13 @@ let player = null;
 let playerReady = false;
 let isSeeking = false;
 let currentVideoId = null;
-let syncInterval;
 let lastSyncTime = 0;
-let pendingRequestId = null;
-
-const SYNC_THRESHOLD = 0.8; // seconds
+let forceSyncInterval;
+let viewerForceSyncInterval;
+let lastState = { playing: false, time: 0 };
 
 // Helper functions
-function showToast(msg, duration = 2500) {
+function showToast(msg, duration = 2000) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -987,11 +714,11 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function extractYouTubeId(url) {
+function extractVideoId(url) {
   if (!url) return null;
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|m\.youtube\.com\/watch\?v=)([^&?#]+)/,
-    /youtube\.com\/shorts\/([^?&]+)/
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/,
+    /youtube\.com\/embed\/([^?]+)/
   ];
   for (const pattern of patterns) {
     const match = url.match(pattern);
@@ -1000,7 +727,7 @@ function extractYouTubeId(url) {
   return null;
 }
 
-// Create YouTube player
+// Create YouTube player with forced low quality for viewers
 function createPlayer(videoId, startTime = 0, autoPlay = false) {
   const placeholder = document.getElementById('placeholder');
   placeholder.style.display = 'none';
@@ -1010,6 +737,8 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
     player = null;
     playerReady = false;
   }
+  
+  console.log(`Creating player: ${videoId}, start: ${startTime}, autoPlay: ${autoPlay}`);
   
   player = new YT.Player('youtube-player', {
     height: '100%',
@@ -1022,13 +751,31 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
       rel: 0,
       origin: window.location.origin,
       autoplay: autoPlay ? 1 : 0,
-      start: Math.floor(startTime)
+      start: Math.floor(startTime),
+      iv_load_policy: 3,
+      playsinline: 1
     },
     events: {
       onReady: (event) => {
         playerReady = true;
-        const volume = parseInt(document.getElementById('volumeSlider').value);
-        event.target.setVolume(volume);
+        event.target.setVolume(parseInt(document.getElementById('volumeSlider').value));
+        
+        // FORCE LOW QUALITY FOR VIEWERS - This prevents buffering!
+        if (!isHost) {
+          setTimeout(() => {
+            if (player && playerReady) {
+              // Force lowest quality for smooth playback
+              player.setPlaybackQuality('small');
+              console.log('Forced low quality for viewer');
+            }
+          }, 500);
+        } else {
+          setTimeout(() => {
+            if (player && playerReady) {
+              player.setPlaybackQuality('auto');
+            }
+          }, 500);
+        }
         
         if (startTime > 0 && !autoPlay) {
           event.target.seekTo(startTime, true);
@@ -1037,14 +784,6 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
         
         showToast('✅ Player ready!');
         document.getElementById('syncText').textContent = 'Synced';
-        document.getElementById('syncDot').classList.remove('warning');
-        
-        // Start sync intervals
-        if (isHost) {
-          startHostSync();
-        } else {
-          startGuestSync();
-        }
       },
       onStateChange: (event) => {
         const playBtn = document.getElementById('playPauseBtn');
@@ -1053,24 +792,22 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
         if (state === YT.PlayerState.PLAYING) {
           playBtn.textContent = '⏸';
           document.getElementById('syncText').textContent = 'Playing';
+          lastState.playing = true;
         } else if (state === YT.PlayerState.PAUSED) {
           playBtn.textContent = '▶';
           document.getElementById('syncText').textContent = 'Paused';
+          lastState.playing = false;
         } else if (state === YT.PlayerState.BUFFERING) {
           document.getElementById('syncText').textContent = 'Buffering...';
+          // Force quality down if buffering
+          if (!isHost && player && playerReady) {
+            setTimeout(() => {
+              try { player.setPlaybackQuality('small'); } catch(e) {}
+            }, 500);
+          }
         } else if (state === YT.PlayerState.ENDED) {
           playBtn.textContent = '▶';
           document.getElementById('syncText').textContent = 'Ended';
-        }
-        
-        // Host sends state changes to all clients
-        if (isHost && playerReady && !isSeeking) {
-          const currentTime = player.getCurrentTime();
-          if (state === YT.PlayerState.PLAYING) {
-            socket.emit('play_video', { currentTime, requestId: Date.now() });
-          } else if (state === YT.PlayerState.PAUSED) {
-            socket.emit('pause_video', { currentTime, requestId: Date.now() });
-          }
         }
       },
       onError: (event) => {
@@ -1087,59 +824,6 @@ function createPlayer(videoId, startTime = 0, autoPlay = false) {
       }
     }
   });
-}
-
-function startHostSync() {
-  if (syncInterval) clearInterval(syncInterval);
-  
-  // Host sends heartbeat every 2 seconds
-  syncInterval = setInterval(() => {
-    if (player && playerReady && !isSeeking) {
-      const currentTime = player.getCurrentTime();
-      socket.emit('sync_request', { currentTime });
-    }
-  }, 2000);
-}
-
-function startGuestSync() {
-  if (syncInterval) clearInterval(syncInterval);
-  
-  // Guests request sync every 2 seconds
-  syncInterval = setInterval(() => {
-    if (player && playerReady) {
-      socket.emit('sync_request', { currentTime: player.getCurrentTime() });
-    }
-  }, 2000);
-}
-
-// Apply video state from server
-function applyVideoState(state) {
-  if (!player || !playerReady) return;
-  
-  try {
-    const currentTime = player.getCurrentTime();
-    const targetTime = state.currentTime;
-    const diff = Math.abs(currentTime - targetTime);
-    
-    // Seek if difference is significant
-    if (diff > SYNC_THRESHOLD) {
-      player.seekTo(targetTime, true);
-      showToast(`🔧 Syncing... (${diff.toFixed(1)}s diff)`, 1000);
-      document.getElementById('syncDot').classList.add('warning');
-      setTimeout(() => document.getElementById('syncDot').classList.remove('warning'), 1000);
-    }
-    
-    // Handle play/pause
-    if (state.isPlaying && player.getPlayerState() !== 1) {
-      player.playVideo();
-    } else if (!state.isPlaying && player.getPlayerState() === 1) {
-      player.pauseVideo();
-    }
-    
-    lastSyncTime = Date.now();
-  } catch(e) {
-    console.warn('Sync error:', e);
-  }
 }
 
 // Socket event handlers
@@ -1172,8 +856,9 @@ function initSocket(name, callback) {
     isHost = true;
     updateUI();
     showToast('👑 You are now the host!');
+    // Reset quality for host
     if (player && playerReady) {
-      startHostSync();
+      player.setPlaybackQuality('auto');
     }
   });
   
@@ -1181,8 +866,9 @@ function initSocket(name, callback) {
     isHost = false;
     updateUI();
     showToast('Host left - you are now a viewer');
+    // Force low quality for viewer
     if (player && playerReady) {
-      startGuestSync();
+      player.setPlaybackQuality('small');
     }
   });
   
@@ -1193,40 +879,37 @@ function initSocket(name, callback) {
     }
   });
   
-  socket.on('video_state', ({ videoId, currentTime, isPlaying }) => {
-    if (videoId && currentVideoId !== videoId) {
-      currentVideoId = videoId;
-      createPlayer(videoId, currentTime, isPlaying);
-    } else if (player && playerReady) {
-      applyVideoState({ currentTime, isPlaying });
-    }
-  });
-  
   socket.on('video_play', ({ currentTime }) => {
     if (!isHost && player && playerReady) {
-      const diff = Math.abs(player.getCurrentTime() - currentTime);
-      if (diff > SYNC_THRESHOLD) {
+      const playerTime = player.getCurrentTime();
+      const diff = Math.abs(playerTime - currentTime);
+      
+      if (diff > 1.5) {
         player.seekTo(currentTime, true);
       }
+      
       setTimeout(() => {
         if (player && playerReady && player.getPlayerState() !== 1) {
           player.playVideo();
         }
-      }, 50);
+      }, 100);
     }
   });
   
   socket.on('video_pause', ({ currentTime }) => {
     if (!isHost && player && playerReady) {
-      const diff = Math.abs(player.getCurrentTime() - currentTime);
-      if (diff > SYNC_THRESHOLD) {
+      const playerTime = player.getCurrentTime();
+      const diff = Math.abs(playerTime - currentTime);
+      
+      if (diff > 1.5) {
         player.seekTo(currentTime, true);
       }
+      
       setTimeout(() => {
         if (player && playerReady && player.getPlayerState() === 1) {
           player.pauseVideo();
         }
-      }, 50);
+      }, 100);
     }
   });
   
@@ -1236,9 +919,21 @@ function initSocket(name, callback) {
     }
   });
   
-  socket.on('sync_response', ({ videoId, isPlaying, currentTime }) => {
-    if (!isHost && player && playerReady && videoId === currentVideoId) {
-      applyVideoState({ currentTime, isPlaying });
+  socket.on('force_sync_response', ({ currentTime, isPlaying }) => {
+    if (!isHost && player && playerReady) {
+      const playerTime = player.getCurrentTime();
+      const diff = Math.abs(playerTime - currentTime);
+      
+      if (diff > 0.8) {
+        player.seekTo(currentTime, true);
+        showToast(`🔧 Syncing...`, 1000);
+      }
+      
+      if (isPlaying && player.getPlayerState() !== 1) {
+        player.playVideo();
+      } else if (!isPlaying && player.getPlayerState() === 1) {
+        player.pauseVideo();
+      }
     }
   });
   
@@ -1283,8 +978,8 @@ function updateRoomUI(info) {
     avatar.textContent = m.name[0].toUpperCase();
     
     const nameSpan = document.createElement('span');
-    nameSpan.className = 'member-name';
     nameSpan.textContent = m.name;
+    nameSpan.style.flex = '1';
     
     div.appendChild(avatar);
     div.appendChild(nameSpan);
@@ -1393,27 +1088,31 @@ function enterApp(info) {
   updateRoomUI(info);
   updateUI();
   
-  // Mobile chat setup
-  const sidebar = document.getElementById('sidebar');
-  const chatToggle = document.getElementById('chatToggleBtn');
-  const closeSidebar = document.getElementById('closeSidebarBtn');
-  
-  if (window.innerWidth <= 768) {
-    chatToggle.style.display = 'flex';
-    
-    chatToggle.onclick = (e) => {
-      e.stopPropagation();
-      sidebar.classList.add('open');
-    };
-    
-    closeSidebar.onclick = () => {
-      sidebar.classList.remove('open');
-    };
-  }
-  
   if (info.videoId) {
     currentVideoId = info.videoId;
     createPlayer(info.videoId, info.currentTime, info.isPlaying);
+  }
+  
+  // Aggressive sync for viewers - every 1 second!
+  if (!isHost) {
+    viewerForceSyncInterval = setInterval(() => {
+      if (player && playerReady && !isSeeking) {
+        socket.emit('force_sync', { 
+          currentTime: player.getCurrentTime(), 
+          isPlaying: player.getPlayerState() === 1 
+        });
+      }
+    }, 1000);
+  } else {
+    // Host sends sync every 2 seconds
+    setInterval(() => {
+      if (player && playerReady && !isSeeking) {
+        socket.emit('force_sync', { 
+          currentTime: player.getCurrentTime(), 
+          isPlaying: player.getPlayerState() === 1 
+        });
+      }
+    }, 2000);
   }
 }
 
@@ -1427,7 +1126,7 @@ function loadVideo() {
     return;
   }
   
-  const videoId = extractYouTubeId(url);
+  const videoId = extractVideoId(url);
   if (!videoId) {
     showToast('❌ Invalid YouTube URL');
     return;
@@ -1453,11 +1152,11 @@ function togglePlayPause() {
   if (state === 1) {
     const currentTime = player.getCurrentTime();
     player.pauseVideo();
-    socket.emit('pause_video', { currentTime, requestId: Date.now() });
+    socket.emit('pause_video', { currentTime });
   } else {
     const currentTime = player.getCurrentTime();
     player.playVideo();
-    socket.emit('play_video', { currentTime, requestId: Date.now() });
+    socket.emit('play_video', { currentTime });
   }
 }
 
@@ -1472,7 +1171,7 @@ function onSeekChange(e) {
   const duration = player.getDuration();
   const time = (percent / 100) * duration;
   player.seekTo(time, true);
-  socket.emit('seek_video', { currentTime: time, requestId: Date.now() });
+  socket.emit('seek_video', { currentTime: time });
   setTimeout(() => { isSeeking = false; }, 100);
 }
 
@@ -1488,19 +1187,17 @@ function updatePlayerUI() {
       document.getElementById('seekBar').value = percent;
       document.getElementById('timeDisplay').textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
     }
+    
+    const playBtn = document.getElementById('playPauseBtn');
+    const state = player.getPlayerState();
+    playBtn.textContent = state === 1 ? '⏸' : '▶';
   } catch(e) {}
 }
 
-function toggleFullscreen() {
-  const container = document.getElementById('playerContainer');
-  if (!document.fullscreenElement) {
-    container.requestFullscreen().catch(err => {
-      showToast(`Fullscreen error: ${err.message}`);
-    });
-  } else {
-    document.exitFullscreen();
-  }
-}
+// Setup intervals
+setInterval(() => {
+  updatePlayerUI();
+}, 300);
 
 // Event listeners
 document.getElementById('tabCreate').addEventListener('click', () => {
@@ -1521,6 +1218,7 @@ document.getElementById('tabJoin').addEventListener('click', () => {
 
 document.getElementById('createRoomBtn').addEventListener('click', createRoom);
 document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
+
 document.getElementById('copyRoomCode').addEventListener('click', () => {
   if (roomId) {
     navigator.clipboard.writeText(roomId);
@@ -1538,14 +1236,10 @@ document.getElementById('seekBar').addEventListener('input', onSeekInput);
 document.getElementById('seekBar').addEventListener('change', onSeekChange);
 
 document.getElementById('volumeSlider').addEventListener('input', (e) => {
-  const volume = parseInt(e.target.value);
   if (player && playerReady) {
-    player.setVolume(volume);
+    player.setVolume(parseInt(e.target.value));
   }
-  localStorage.setItem('volume', volume);
 });
-
-document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
 
 // Chat
 document.getElementById('sendBtn').addEventListener('click', () => {
@@ -1558,32 +1252,9 @@ document.getElementById('sendBtn').addEventListener('click', () => {
 
 document.getElementById('chatMessage').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {
-    e.preventDefault();
     document.getElementById('sendBtn').click();
   }
 });
-
-// Window resize handler
-window.addEventListener('resize', () => {
-  const sidebar = document.getElementById('sidebar');
-  const chatToggle = document.getElementById('chatToggleBtn');
-  if (window.innerWidth <= 768) {
-    chatToggle.style.display = 'flex';
-    sidebar.classList.remove('open');
-  } else {
-    chatToggle.style.display = 'none';
-    sidebar.classList.remove('open');
-  }
-});
-
-// UI update loop
-setInterval(updatePlayerUI, 300);
-
-// Load saved volume
-const savedVolume = localStorage.getItem('volume');
-if (savedVolume) {
-  document.getElementById('volumeSlider').value = savedVolume;
-}
 </script>
 </body>
 </html>
