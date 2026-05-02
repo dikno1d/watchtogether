@@ -14,13 +14,18 @@ const io = new Server(server, {
 // Serve static files
 app.use(express.static(path.join(__dirname, "public")));
 
-// For any route, serve index.html
+// Serve index.html for all routes (SPA support)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+// In-memory room storage
 const rooms = {};
-const COLORS = ["#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF", "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585", "#48CAE4", "#E9C46A"];
+const COLORS = [
+  "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
+  "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585",
+  "#48CAE4", "#E9C46A",
+];
 
 function getRoom(roomId) {
   return rooms[roomId];
@@ -39,7 +44,9 @@ function roomInfo(roomId) {
     roomId,
     host: room.host,
     members: Array.from(room.members.entries()).map(([id, d]) => ({
-      id, name: d.name, color: d.color,
+      id,
+      name: d.name,
+      color: d.color,
     })),
     video: {
       url: room.video.url,
@@ -50,91 +57,126 @@ function roomInfo(roomId) {
 }
 
 io.on("connection", (socket) => {
-  console.log("connect", socket.id);
+  console.log("✅ User connected:", socket.id);
 
+  // Create Room
   socket.on("create_room", ({ name }, cb) => {
     const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
     const color = COLORS[0];
+    
     rooms[roomId] = {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
       video: { url: "", playing: false, currentTime: 0, updatedAt: Date.now() },
     };
+    
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.name = name;
-    console.log(`Room ${roomId} created by ${name}`);
+    
+    console.log(`🏠 Room ${roomId} created by ${name}`);
     cb({ ok: true, roomId, info: roomInfo(roomId) });
     io.to(roomId).emit("room_update", roomInfo(roomId));
   });
 
+  // Join Room
   socket.on("join_room", ({ roomId, name }, cb) => {
     const room = getRoom(roomId);
-    if (!room) return cb({ ok: false, error: "Room not found" });
-    if (room.members.size >= 10) return cb({ ok: false, error: "Room is full (10/10)" });
+    
+    if (!room) {
+      return cb({ ok: false, error: "❌ Room not found" });
+    }
+    
+    if (room.members.size >= 10) {
+      return cb({ ok: false, error: "❌ Room is full (max 10 members)" });
+    }
 
     const usedColors = new Set([...room.members.values()].map((m) => m.color));
     const color = COLORS.find((c) => !usedColors.has(c)) || COLORS[room.members.size % COLORS.length];
+    
     room.members.set(socket.id, { name, color });
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.name = name;
 
-    console.log(`${name} joined ${roomId}`);
+    console.log(`👤 ${name} joined ${roomId}`);
     cb({ ok: true, roomId, info: roomInfo(roomId) });
+    
     io.to(roomId).emit("room_update", roomInfo(roomId));
     io.to(roomId).emit("chat_message", {
       system: true,
-      text: `${name} joined the room`,
+      text: `✨ ${name} joined the room`,
       ts: Date.now(),
     });
   });
 
+  // Video Controls (Host only)
   socket.on("video_load", ({ url }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
+    
     room.video = { url, playing: false, currentTime: 0, updatedAt: Date.now() };
     io.to(socket.data.roomId).emit("video_state", {
-      url, playing: false, currentTime: 0,
+      url,
+      playing: false,
+      currentTime: 0,
     });
+    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${url}`);
   });
 
   socket.on("video_play", () => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
+    
     const ct = serverTime(room);
     room.video.playing = true;
     room.video.currentTime = ct;
     room.video.updatedAt = Date.now();
+    
     io.to(socket.data.roomId).emit("video_state", {
-      url: room.video.url, playing: true, currentTime: ct,
+      url: room.video.url,
+      playing: true,
+      currentTime: ct,
     });
+    console.log(`▶️ Video played in ${socket.data.roomId}`);
   });
 
   socket.on("video_pause", ({ currentTime }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
+    
     room.video.playing = false;
     room.video.currentTime = currentTime;
     room.video.updatedAt = Date.now();
+    
     io.to(socket.data.roomId).emit("video_state", {
-      url: room.video.url, playing: false, currentTime,
+      url: room.video.url,
+      playing: false,
+      currentTime,
     });
+    console.log(`⏸️ Video paused in ${socket.data.roomId}`);
   });
 
   socket.on("video_seek", ({ currentTime }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
+    
     room.video.currentTime = currentTime;
     room.video.updatedAt = Date.now();
+    
     io.to(socket.data.roomId).emit("video_state", {
-      url: room.video.url, playing: room.video.playing, currentTime,
+      url: room.video.url,
+      playing: room.video.playing,
+      currentTime,
     });
+    console.log(`⏩ Video seeked to ${currentTime}s in ${socket.data.roomId}`);
   });
 
+  // Chat
   socket.on("chat_send", ({ text }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || !text.trim()) return;
+    
     const member = room.members.get(socket.id);
     io.to(socket.data.roomId).emit("chat_message", {
       system: false,
@@ -146,14 +188,17 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Heartbeat for sync
   socket.on("heartbeat", ({ currentTime }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
+    
     room.video.currentTime = currentTime;
     room.video.updatedAt = Date.now();
     socket.to(socket.data.roomId).emit("sync_time", { currentTime });
   });
 
+  // Disconnect
   socket.on("disconnect", () => {
     const roomId = socket.data.roomId;
     const room = getRoom(roomId);
@@ -164,28 +209,32 @@ io.on("connection", (socket) => {
 
     if (room.members.size === 0) {
       delete rooms[roomId];
-      console.log(`Room ${roomId} deleted (empty)`);
+      console.log(`🗑️ Room ${roomId} deleted (empty)`);
       return;
     }
 
+    // Transfer host if needed
     if (room.host === socket.id) {
       room.host = [...room.members.keys()][0];
       io.to(room.host).emit("you_are_host");
-      console.log(`Host transferred in ${roomId}`);
+      console.log(`👑 Host transferred to ${room.host} in ${roomId}`);
     }
 
     io.to(roomId).emit("room_update", roomInfo(roomId));
     if (member) {
       io.to(roomId).emit("chat_message", {
         system: true,
-        text: `${member.name} left the room`,
+        text: `👋 ${member.name} left the room`,
         ts: Date.now(),
       });
     }
+    console.log(`❌ User disconnected: ${socket.id}`);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🎬 WatchTogether server running on http://localhost:${PORT}`);
+  console.log(`\n🎬 WatchTogether server running!`);
+  console.log(`📍 Local: http://localhost:${PORT}`);
+  console.log(`🌍 Ready for Render deployment\n`);
 });
