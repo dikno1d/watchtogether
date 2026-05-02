@@ -4,10 +4,10 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0a0a0f"/>
-<title>Watch Party 🎬</title>
+<title>Sync Watch Party 🎬</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -263,6 +263,10 @@
     animation: pulse 2s infinite;
   }
   
+  .sync-dot.warning {
+    background: var(--danger);
+  }
+  
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
@@ -336,25 +340,9 @@
     transform: scale(0.97);
   }
   
-  .detected-platform {
-    padding: 8px 16px;
-    background: var(--sur2);
-    font-size: 11px;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .platform-badge {
-    background: var(--accent);
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 10px;
-    color: white;
-    font-weight: 600;
+  .url-bar button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   
   .player-container {
@@ -367,15 +355,11 @@
   .player-wrapper {
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   
-  iframe {
+  #youtube-player {
     width: 100%;
     height: 100%;
-    border: none;
   }
   
   .placeholder {
@@ -428,11 +412,6 @@
   .control-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-  }
-  
-  .control-btn:hover:not(:disabled) {
-    background: var(--accent);
-    border-color: var(--accent);
   }
   
   .seek-bar {
@@ -499,7 +478,7 @@
     background: var(--accent);
   }
   
-  /* Sidebar - Chat */
+  /* Sidebar */
   .sidebar {
     width: var(--sidebar-width);
     background: var(--surface);
@@ -517,10 +496,6 @@
     border-bottom: 1px solid var(--border);
   }
   
-  .sidebar-header .section-title {
-    margin-bottom: 0;
-  }
-  
   .close-sidebar-btn {
     background: rgba(255,255,255,0.08);
     border: none;
@@ -531,10 +506,6 @@
     border-radius: 10px;
     transition: 0.2s;
     display: none;
-  }
-  
-  .close-sidebar-btn:active {
-    background: rgba(255,255,255,0.15);
   }
   
   .members-section {
@@ -567,10 +538,6 @@
     padding: 6px 8px;
     border-radius: 12px;
     transition: background 0.2s;
-  }
-  
-  .member-item:active {
-    background: rgba(255,255,255,0.05);
   }
   
   .member-avatar {
@@ -716,10 +683,6 @@
     justify-content: center;
   }
   
-  .chat-input button:active {
-    transform: scale(0.95);
-  }
-  
   #toast {
     position: fixed;
     bottom: 20px;
@@ -735,7 +698,6 @@
     pointer-events: none;
     text-align: center;
     max-width: 90vw;
-    white-space: nowrap;
     font-weight: 500;
   }
   
@@ -763,10 +725,6 @@
       right: 0;
     }
     
-    .sidebar-header {
-      padding: 16px 20px;
-    }
-    
     .close-sidebar-btn {
       display: flex;
     }
@@ -791,10 +749,6 @@
       transition: 0.2s;
     }
     
-    .chat-toggle:active {
-      transform: scale(0.95);
-    }
-    
     .controls {
       gap: 8px;
       padding: 10px 12px;
@@ -817,10 +771,6 @@
       font-size: 11px;
     }
     
-    .volume-slider {
-      width: 60px;
-    }
-    
     .url-bar {
       flex-direction: column;
     }
@@ -833,30 +783,12 @@
       width: 100%;
     }
     
-    .topbar-left {
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    
-    .app-logo {
-      font-size: 14px;
-    }
-    
-    .room-info {
-      font-size: 11px;
-      padding: 4px 10px;
-    }
-    
     .member-count {
       font-size: 11px;
     }
     
     .message-bubble {
       max-width: 180px;
-    }
-    
-    .topbar {
-      padding: 0 12px;
     }
   }
   
@@ -868,10 +800,6 @@
     .sidebar {
       position: relative;
       right: auto !important;
-    }
-    
-    .close-sidebar-btn {
-      display: none;
     }
   }
   
@@ -893,41 +821,10 @@
       font-size: 10px;
     }
     
-    .message-bubble {
-      max-width: 160px;
-      font-size: 12px;
-    }
-    
     .chat-toggle {
       width: 48px;
       height: 48px;
       font-size: 20px;
-      bottom: 16px;
-      right: 12px;
-    }
-  }
-  
-  /* Landscape Mode */
-  @media (max-width: 900px) and (orientation: landscape) {
-    .sidebar {
-      width: 280px;
-    }
-    
-    .members-section {
-      max-height: 100px;
-    }
-    
-    .chat-toggle {
-      bottom: 70px;
-    }
-    
-    .controls {
-      padding: 8px 12px;
-    }
-    
-    .control-btn {
-      width: 36px;
-      height: 36px;
     }
   }
   
@@ -937,8 +834,7 @@
   }
   
   .player-container:fullscreen .controls,
-  .player-container:fullscreen .url-bar,
-  .player-container:fullscreen .detected-platform {
+  .player-container:fullscreen .url-bar {
     position: fixed;
     bottom: 0;
     left: 0;
@@ -947,24 +843,14 @@
     background: rgba(18, 18, 26, 0.95);
     backdrop-filter: blur(10px);
   }
-  
-  /* Touch feedback */
-  button, .control-btn, .fullscreen-btn, .copy-btn, .tab {
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-  
-  button:active, .control-btn:active, .fullscreen-btn:active, .copy-btn:active, .tab:active {
-    opacity: 0.8;
-  }
 </style>
 </head>
 <body>
 
 <div id="lobby">
   <div class="card">
-    <div class="logo">Watch Party</div>
-    <p class="sub">Watch ANY video with friends — perfectly synced!</p>
+    <div class="logo">Sync Watch Party</div>
+    <p class="sub">Watch YouTube with friends — perfectly synced!</p>
     <div class="tabs">
       <button class="tab active" id="tabCreate">Create Room</button>
       <button class="tab" id="tabJoin">Join Room</button>
@@ -994,15 +880,15 @@
 <div id="app">
   <div class="topbar">
     <div class="topbar-left">
-      <span class="app-logo">🎬 Watch Party</span>
+      <span class="app-logo">🎬 Sync Party</span>
       <div class="room-info">
         <span>Room: <strong class="room-code-text" id="roomCode">------</strong></span>
         <button class="copy-btn" id="copyRoomCode">📋</button>
       </div>
       <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
       <div class="sync-status">
-        <div class="sync-dot"></div>
-        <span id="syncText">Ready</span>
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncText">Synced</span>
       </div>
     </div>
     <span class="member-count" id="memberCount">0/20 members</span>
@@ -1011,33 +897,27 @@
   <div class="main">
     <div class="video-panel">
       <div class="url-bar" id="hostControls">
-        <input type="text" id="videoUrl" placeholder="Paste video URL (YouTube, Vimeo, Twitch, etc.)" autocomplete="off">
+        <input type="text" id="videoUrl" placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)" autocomplete="off">
         <button id="loadVideoBtn">🎬 Load Video</button>
       </div>
       <div class="url-bar" id="guestControls" style="display: none;">
         <span style="color: var(--muted);">⏳ Waiting for host to load a video...</span>
       </div>
       
-      <div class="detected-platform" id="detectedPlatform" style="display: none;">
-        <span>🔍 Detected:</span>
-        <span class="platform-badge" id="platformName">-</span>
-      </div>
-      
       <div class="player-container" id="playerContainer">
-        <div class="player-wrapper" id="playerWrapper">
-          <iframe id="videoFrame" style="width:100%; height:100%; border:none; display:none;"></iframe>
+        <div class="player-wrapper">
+          <div id="youtube-player"></div>
         </div>
         <div class="placeholder" id="placeholder">
           <div style="font-size: 56px; margin-bottom: 16px;">🎬</div>
           <p style="font-size: 16px; font-weight: 600;">No video loaded</p>
-          <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Host: Paste any video URL and click Load</p>
-          <p style="font-size: 11px; margin-top: 10px; opacity: 0.5;">Supports: YouTube, Vimeo, Dailymotion, Twitch, MP4, and more!</p>
+          <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Host: Paste a YouTube URL and click Load</p>
         </div>
       </div>
       
       <div class="controls">
         <button class="control-btn" id="playPauseBtn" disabled>▶</button>
-        <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0" disabled>
+        <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0" step="0.1" disabled>
         <span class="time" id="timeDisplay">0:00 / 0:00</span>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span>🔊</span>
@@ -1078,9 +958,15 @@ let myId;
 let myName;
 let roomId;
 let isHost = false;
-let currentPlatform = null;
-let currentVideoUrl = null;
-let currentIframe = null;
+let player = null;
+let playerReady = false;
+let isSeeking = false;
+let currentVideoId = null;
+let syncInterval;
+let lastSyncTime = 0;
+let pendingRequestId = null;
+
+const SYNC_THRESHOLD = 0.8; // seconds
 
 // Helper functions
 function showToast(msg, duration = 2500) {
@@ -1101,8 +987,8 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Extract YouTube ID from any YouTube URL
 function extractYouTubeId(url) {
+  if (!url) return null;
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|m\.youtube\.com\/watch\?v=)([^&?#]+)/,
     /youtube\.com\/shorts\/([^?&]+)/
@@ -1114,100 +1000,146 @@ function extractYouTubeId(url) {
   return null;
 }
 
-// Detect video platform
-function detectVideoPlatform(url) {
-  if (!url) return null;
-  const urlLower = url.toLowerCase();
+// Create YouTube player
+function createPlayer(videoId, startTime = 0, autoPlay = false) {
+  const placeholder = document.getElementById('placeholder');
+  placeholder.style.display = 'none';
   
-  // YouTube
-  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
-    const videoId = extractYouTubeId(url);
-    if (videoId) {
-      return {
-        platform: 'youtube',
-        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0&autoplay=0`
-      };
+  if (player) {
+    try { player.destroy(); } catch(e) {}
+    player = null;
+    playerReady = false;
+  }
+  
+  player = new YT.Player('youtube-player', {
+    height: '100%',
+    width: '100%',
+    videoId: videoId,
+    playerVars: {
+      controls: 0,
+      disablekb: 1,
+      modestbranding: 1,
+      rel: 0,
+      origin: window.location.origin,
+      autoplay: autoPlay ? 1 : 0,
+      start: Math.floor(startTime)
+    },
+    events: {
+      onReady: (event) => {
+        playerReady = true;
+        const volume = parseInt(document.getElementById('volumeSlider').value);
+        event.target.setVolume(volume);
+        
+        if (startTime > 0 && !autoPlay) {
+          event.target.seekTo(startTime, true);
+          event.target.pauseVideo();
+        }
+        
+        showToast('✅ Player ready!');
+        document.getElementById('syncText').textContent = 'Synced';
+        document.getElementById('syncDot').classList.remove('warning');
+        
+        // Start sync intervals
+        if (isHost) {
+          startHostSync();
+        } else {
+          startGuestSync();
+        }
+      },
+      onStateChange: (event) => {
+        const playBtn = document.getElementById('playPauseBtn');
+        const state = event.data;
+        
+        if (state === YT.PlayerState.PLAYING) {
+          playBtn.textContent = '⏸';
+          document.getElementById('syncText').textContent = 'Playing';
+        } else if (state === YT.PlayerState.PAUSED) {
+          playBtn.textContent = '▶';
+          document.getElementById('syncText').textContent = 'Paused';
+        } else if (state === YT.PlayerState.BUFFERING) {
+          document.getElementById('syncText').textContent = 'Buffering...';
+        } else if (state === YT.PlayerState.ENDED) {
+          playBtn.textContent = '▶';
+          document.getElementById('syncText').textContent = 'Ended';
+        }
+        
+        // Host sends state changes to all clients
+        if (isHost && playerReady && !isSeeking) {
+          const currentTime = player.getCurrentTime();
+          if (state === YT.PlayerState.PLAYING) {
+            socket.emit('play_video', { currentTime, requestId: Date.now() });
+          } else if (state === YT.PlayerState.PAUSED) {
+            socket.emit('pause_video', { currentTime, requestId: Date.now() });
+          }
+        }
+      },
+      onError: (event) => {
+        console.error('YouTube error:', event.data);
+        let errorMsg = 'Failed to load video. ';
+        if (event.data === 2) errorMsg += 'Invalid video ID.';
+        else if (event.data === 5) errorMsg += 'HTML5 player error.';
+        else if (event.data === 100) errorMsg += 'Video not found.';
+        else if (event.data === 101 || event.data === 150) errorMsg += 'Video cannot be embedded.';
+        else errorMsg += 'Try another video.';
+        showToast('❌ ' + errorMsg);
+        document.getElementById('placeholder').style.display = 'flex';
+        playerReady = false;
+      }
     }
-  }
-  
-  // Vimeo
-  if (urlLower.includes('vimeo.com')) {
-    const match = url.match(/vimeo\.com\/(\d+)/);
-    if (match) {
-      return {
-        platform: 'vimeo',
-        embedUrl: `https://player.vimeo.com/video/${match[1]}?autoplay=0`
-      };
-    }
-  }
-  
-  // Dailymotion
-  if (urlLower.includes('dailymotion.com')) {
-    const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
-    if (match) {
-      return {
-        platform: 'dailymotion',
-        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`
-      };
-    }
-  }
-  
-  // Twitch
-  if (urlLower.includes('twitch.tv')) {
-    const match = url.match(/twitch\.tv\/([^\/?]+)/);
-    if (match) {
-      return {
-        platform: 'twitch',
-        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${window.location.hostname}&autoplay=false`
-      };
-    }
-  }
-  
-  // Direct video files
-  if (url.match(/\.(mp4|webm|ogg|mov|mkv)(\?|$)/i)) {
-    return {
-      platform: 'direct',
-      embedUrl: url
-    };
-  }
-  
-  // Generic
-  return {
-    platform: 'generic',
-    embedUrl: url
-  };
+  });
 }
 
-// Render video
-function renderVideo(videoUrl, platform) {
-  const iframe = document.getElementById('videoFrame');
-  const placeholder = document.getElementById('placeholder');
-  const detectedPlatform = document.getElementById('detectedPlatform');
-  const platformName = document.getElementById('platformName');
+function startHostSync() {
+  if (syncInterval) clearInterval(syncInterval);
   
-  if (!videoUrl) return false;
+  // Host sends heartbeat every 2 seconds
+  syncInterval = setInterval(() => {
+    if (player && playerReady && !isSeeking) {
+      const currentTime = player.getCurrentTime();
+      socket.emit('sync_request', { currentTime });
+    }
+  }, 2000);
+}
+
+function startGuestSync() {
+  if (syncInterval) clearInterval(syncInterval);
   
-  placeholder.style.display = 'none';
-  detectedPlatform.style.display = 'flex';
-  platformName.textContent = platform.toUpperCase();
+  // Guests request sync every 2 seconds
+  syncInterval = setInterval(() => {
+    if (player && playerReady) {
+      socket.emit('sync_request', { currentTime: player.getCurrentTime() });
+    }
+  }, 2000);
+}
+
+// Apply video state from server
+function applyVideoState(state) {
+  if (!player || !playerReady) return;
   
-  currentPlatform = platform;
-  currentVideoUrl = videoUrl;
-  
-  iframe.style.display = 'block';
-  iframe.src = videoUrl;
-  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
-  iframe.setAttribute('allowfullscreen', 'true');
-  
-  showToast(`✅ Loaded: ${platform.toUpperCase()}`);
-  
-  iframe.onerror = () => {
-    showToast(`⚠️ Could not load video. Try a different link.`);
-    placeholder.style.display = 'flex';
-    iframe.style.display = 'none';
-  };
-  
-  return true;
+  try {
+    const currentTime = player.getCurrentTime();
+    const targetTime = state.currentTime;
+    const diff = Math.abs(currentTime - targetTime);
+    
+    // Seek if difference is significant
+    if (diff > SYNC_THRESHOLD) {
+      player.seekTo(targetTime, true);
+      showToast(`🔧 Syncing... (${diff.toFixed(1)}s diff)`, 1000);
+      document.getElementById('syncDot').classList.add('warning');
+      setTimeout(() => document.getElementById('syncDot').classList.remove('warning'), 1000);
+    }
+    
+    // Handle play/pause
+    if (state.isPlaying && player.getPlayerState() !== 1) {
+      player.playVideo();
+    } else if (!state.isPlaying && player.getPlayerState() === 1) {
+      player.pauseVideo();
+    }
+    
+    lastSyncTime = Date.now();
+  } catch(e) {
+    console.warn('Sync error:', e);
+  }
 }
 
 // Socket event handlers
@@ -1240,37 +1172,73 @@ function initSocket(name, callback) {
     isHost = true;
     updateUI();
     showToast('👑 You are now the host!');
+    if (player && playerReady) {
+      startHostSync();
+    }
   });
   
   socket.on('host_changed', () => {
     isHost = false;
     updateUI();
     showToast('Host left - you are now a viewer');
+    if (player && playerReady) {
+      startGuestSync();
+    }
   });
   
-  socket.on('video_loaded', ({ videoUrl, videoPlatform, currentTime, isPlaying }) => {
-    if (videoUrl && currentVideoUrl !== videoUrl) {
-      renderVideo(videoUrl, videoPlatform);
+  socket.on('video_loaded', ({ videoId, currentTime, isPlaying }) => {
+    if (videoId && currentVideoId !== videoId) {
+      currentVideoId = videoId;
+      createPlayer(videoId, currentTime, isPlaying);
+    }
+  });
+  
+  socket.on('video_state', ({ videoId, currentTime, isPlaying }) => {
+    if (videoId && currentVideoId !== videoId) {
+      currentVideoId = videoId;
+      createPlayer(videoId, currentTime, isPlaying);
+    } else if (player && playerReady) {
+      applyVideoState({ currentTime, isPlaying });
     }
   });
   
   socket.on('video_play', ({ currentTime }) => {
-    if (!isHost) {
-      showToast('▶️ Host started playing', 1000);
-      document.getElementById('syncText').textContent = 'Playing';
+    if (!isHost && player && playerReady) {
+      const diff = Math.abs(player.getCurrentTime() - currentTime);
+      if (diff > SYNC_THRESHOLD) {
+        player.seekTo(currentTime, true);
+      }
+      setTimeout(() => {
+        if (player && playerReady && player.getPlayerState() !== 1) {
+          player.playVideo();
+        }
+      }, 50);
     }
   });
   
   socket.on('video_pause', ({ currentTime }) => {
-    if (!isHost) {
-      showToast('⏸️ Host paused', 1000);
-      document.getElementById('syncText').textContent = 'Paused';
+    if (!isHost && player && playerReady) {
+      const diff = Math.abs(player.getCurrentTime() - currentTime);
+      if (diff > SYNC_THRESHOLD) {
+        player.seekTo(currentTime, true);
+      }
+      setTimeout(() => {
+        if (player && playerReady && player.getPlayerState() === 1) {
+          player.pauseVideo();
+        }
+      }, 50);
     }
   });
   
   socket.on('video_seek', ({ currentTime }) => {
-    if (!isHost) {
-      showToast(`⏩ Seek to ${formatTime(currentTime)}`, 1000);
+    if (!isHost && player && playerReady) {
+      player.seekTo(currentTime, true);
+    }
+  });
+  
+  socket.on('sync_response', ({ videoId, isPlaying, currentTime }) => {
+    if (!isHost && player && playerReady && videoId === currentVideoId) {
+      applyVideoState({ currentTime, isPlaying });
     }
   });
   
@@ -1433,29 +1401,19 @@ function enterApp(info) {
   if (window.innerWidth <= 768) {
     chatToggle.style.display = 'flex';
     
-    // Open chat
     chatToggle.onclick = (e) => {
       e.stopPropagation();
       sidebar.classList.add('open');
     };
     
-    // Close chat
     closeSidebar.onclick = () => {
       sidebar.classList.remove('open');
     };
-    
-    // Close chat when clicking outside (optional, but might interfere)
-    document.addEventListener('click', (e) => {
-      if (sidebar.classList.contains('open')) {
-        if (!sidebar.contains(e.target) && e.target !== chatToggle) {
-          sidebar.classList.remove('open');
-        }
-      }
-    });
   }
   
-  if (info.videoUrl) {
-    renderVideo(info.videoUrl, info.videoPlatform || 'generic');
+  if (info.videoId) {
+    currentVideoId = info.videoId;
+    createPlayer(info.videoId, info.currentTime, info.isPlaying);
   }
 }
 
@@ -1465,36 +1423,74 @@ function loadVideo() {
   
   const url = document.getElementById('videoUrl').value.trim();
   if (!url) {
-    showToast('Please enter a video URL');
+    showToast('Please enter a YouTube URL');
     return;
   }
   
-  showToast('🔍 Detecting video source...');
-  
-  const detected = detectVideoPlatform(url);
-  
-  if (!detected) {
-    showToast('❌ Could not detect video source');
+  const videoId = extractYouTubeId(url);
+  if (!videoId) {
+    showToast('❌ Invalid YouTube URL');
     return;
   }
   
-  showToast(`📡 Loading from ${detected.platform.toUpperCase()}...`);
-  
-  renderVideo(detected.embedUrl, detected.platform);
-  
-  socket.emit('load_video', { 
-    videoUrl: detected.embedUrl, 
-    videoPlatform: detected.platform 
-  }, (res) => {
+  showToast('📡 Loading video...');
+  socket.emit('load_video', { videoId }, (res) => {
     if (res.success) {
-      showToast(`✅ Video loaded! (${detected.platform.toUpperCase()})`);
+      showToast('✅ Video loaded for everyone!');
+      currentVideoId = videoId;
+      createPlayer(videoId, 0, false);
     } else {
-      showToast('❌ Failed to load video for others');
+      showToast('❌ Failed to load video');
     }
   });
 }
 
-// Fullscreen
+// Video controls (host only)
+function togglePlayPause() {
+  if (!isHost || !player || !playerReady) return;
+  
+  const state = player.getPlayerState();
+  if (state === 1) {
+    const currentTime = player.getCurrentTime();
+    player.pauseVideo();
+    socket.emit('pause_video', { currentTime, requestId: Date.now() });
+  } else {
+    const currentTime = player.getCurrentTime();
+    player.playVideo();
+    socket.emit('play_video', { currentTime, requestId: Date.now() });
+  }
+}
+
+function onSeekInput() {
+  if (!isHost || !player || !playerReady) return;
+  isSeeking = true;
+}
+
+function onSeekChange(e) {
+  if (!isHost || !player || !playerReady) return;
+  const percent = parseFloat(e.target.value);
+  const duration = player.getDuration();
+  const time = (percent / 100) * duration;
+  player.seekTo(time, true);
+  socket.emit('seek_video', { currentTime: time, requestId: Date.now() });
+  setTimeout(() => { isSeeking = false; }, 100);
+}
+
+function updatePlayerUI() {
+  if (!player || !playerReady) return;
+  
+  try {
+    const currentTime = player.getCurrentTime();
+    const duration = player.getDuration();
+    
+    if (duration && !isSeeking) {
+      const percent = (currentTime / duration) * 100;
+      document.getElementById('seekBar').value = percent;
+      document.getElementById('timeDisplay').textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+    }
+  } catch(e) {}
+}
+
 function toggleFullscreen() {
   const container = document.getElementById('playerContainer');
   if (!document.fullscreenElement) {
@@ -1503,14 +1499,6 @@ function toggleFullscreen() {
     });
   } else {
     document.exitFullscreen();
-  }
-}
-
-// Time display update
-function updateTimeDisplay() {
-  const timeSpan = document.getElementById('timeDisplay');
-  if (currentPlatform !== 'direct') {
-    timeSpan.textContent = 'Use controls';
   }
 }
 
@@ -1545,16 +1533,19 @@ document.getElementById('videoUrl').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') loadVideo();
 });
 
-document.getElementById('playPauseBtn').addEventListener('click', () => {
-  if (!isHost) return;
-  showToast('Use video player controls for playback', 1500);
+document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
+document.getElementById('seekBar').addEventListener('input', onSeekInput);
+document.getElementById('seekBar').addEventListener('change', onSeekChange);
+
+document.getElementById('volumeSlider').addEventListener('input', (e) => {
+  const volume = parseInt(e.target.value);
+  if (player && playerReady) {
+    player.setVolume(volume);
+  }
+  localStorage.setItem('volume', volume);
 });
 
 document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
-
-document.getElementById('volumeSlider').addEventListener('input', (e) => {
-  localStorage.setItem('volume', e.target.value);
-});
 
 // Chat
 document.getElementById('sendBtn').addEventListener('click', () => {
@@ -1563,13 +1554,6 @@ document.getElementById('sendBtn').addEventListener('click', () => {
   if (!text) return;
   socket.emit('chat_send', { text });
   input.value = '';
-  
-  // Keep focus on mobile - don't close chat when typing
-  if (window.innerWidth <= 768) {
-    setTimeout(() => {
-      input.focus();
-    }, 100);
-  }
 });
 
 document.getElementById('chatMessage').addEventListener('keypress', (e) => {
@@ -1592,16 +1576,14 @@ window.addEventListener('resize', () => {
   }
 });
 
-setInterval(updateTimeDisplay, 1000);
+// UI update loop
+setInterval(updatePlayerUI, 300);
 
-// Prevent keyboard from closing sidebar on mobile
-document.getElementById('chatMessage').addEventListener('focus', () => {
-  if (window.innerWidth <= 768) {
-    // Keep sidebar open while typing
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.add('open');
-  }
-});
+// Load saved volume
+const savedVolume = localStorage.getItem('volume');
+if (savedVolume) {
+  document.getElementById('volumeSlider').value = savedVolume;
+}
 </script>
 </body>
 </html>
