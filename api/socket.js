@@ -1,37 +1,18 @@
 // ============================================================
-//  WatchTogether — Server
-//  Stack: Node.js · Express · Socket.io
-//  Run:   node server.js   (default port 3000)
+//  WatchTogether — Server for Vercel
+//  Serverless Socket.io implementation
 // ============================================================
 
 const express = require("express");
-const http = require("http");
 const { Server } = require("socket.io");
-const path = require("path");
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" },
-  pingInterval: 10000,
-  pingTimeout: 5000,
-});
-
-// ── Static files ────────────────────────────────────────────
-app.use(express.static(path.join(__dirname)));
-
-// ── In-memory room state ────────────────────────────────────
-// rooms[roomId] = {
-//   host: socketId,
-//   members: Map<socketId, { name, color }>,
-//   video: { url, playing, currentTime, updatedAt }
-// }
+// In-memory room state (note: resets on Vercel serverless function cold starts)
 const rooms = {};
 
 const COLORS = [
-  "#FF6B6B","#FFD93D","#6BCB77","#4D96FF",
-  "#C77DFF","#FF9A3C","#00C9A7","#F72585",
-  "#48CAE4","#E9C46A",
+  "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
+  "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585",
+  "#48CAE4", "#E9C46A",
 ];
 
 function getRoom(roomId) {
@@ -61,7 +42,19 @@ function roomInfo(roomId) {
   };
 }
 
-// ── Socket.io ───────────────────────────────────────────────
+const app = express();
+
+// Create HTTP server and Socket.io
+const server = require("http").createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" },
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  path: '/api/socket',
+  transports: ['websocket', 'polling']
+});
+
+// Socket.io connection handling
 io.on("connection", (socket) => {
   console.log("connect", socket.id);
 
@@ -148,12 +141,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("video_volume", ({ volume }) => {
-    // Volume is local per user — no broadcast needed
-    // But we relay it so host can optionally sync
-    // (commented out — purely local)
-  });
-
   // ─ Chat ─────────────────────────────────────────────────
   socket.on("chat_send", ({ text }) => {
     const room = getRoom(socket.data.roomId);
@@ -169,13 +156,12 @@ io.on("connection", (socket) => {
     });
   });
 
-  // ─ Heartbeat sync (host sends current time every 5s) ───
+  // ─ Heartbeat sync ───────────────────────────────────────
   socket.on("heartbeat", ({ currentTime }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     room.video.currentTime = currentTime;
     room.video.updatedAt = Date.now();
-    // Only broadcast to non-host members
     socket.to(socket.data.roomId).emit("sync_time", { currentTime });
   });
 
@@ -212,8 +198,21 @@ io.on("connection", (socket) => {
   });
 });
 
-// ── Start ───────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`\n🎬 WatchTogether server running on http://localhost:${PORT}\n`);
-});
+// Export the server for Vercel
+module.exports = (req, res) => {
+  if (req.url === '/api/socket') {
+    // Handle Socket.io connections
+    server.emit('request', req, res);
+  } else {
+    // Serve static files or 404
+    res.status(404).send('Not found');
+  }
+};
+
+// Start server locally if not in Vercel
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`\n🎬 WatchTogether server running on http://localhost:${PORT}\n`);
+  });
+}
