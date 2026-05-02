@@ -22,7 +22,7 @@ const rooms = {};
 const COLORS = [
   "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
   "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585",
-  "#48CAE4", "#E9C46A"
+  "#48CAE4", "#E9C46A", "#FF6B4A", "#4ECDC4"
 ];
 
 function getRoom(roomId) {
@@ -38,7 +38,8 @@ function roomInfo(roomId) {
     members: Array.from(room.members.entries()).map(([id, d]) => ({
       id, name: d.name, color: d.color,
     })),
-    videoId: room.videoId,
+    videoUrl: room.videoUrl,
+    videoPlatform: room.videoPlatform,
     isPlaying: room.isPlaying,
     currentTime: room.currentTime
   };
@@ -54,7 +55,8 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
-      videoId: null,
+      videoUrl: null,
+      videoPlatform: null,
       isPlaying: false,
       currentTime: 0,
       lastUpdate: Date.now()
@@ -99,23 +101,25 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("load_video", ({ videoId }, cb) => {
+  socket.on("load_video", ({ videoUrl, videoPlatform }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.videoId = videoId;
+    room.videoUrl = videoUrl;
+    room.videoPlatform = videoPlatform;
     room.isPlaying = false;
     room.currentTime = 0;
     room.lastUpdate = Date.now();
     
     io.to(socket.data.roomId).emit("video_loaded", {
-      videoId: videoId,
+      videoUrl: videoUrl,
+      videoPlatform: videoPlatform,
       currentTime: 0,
       isPlaying: false
     });
     
     cb({ success: true });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoId}`);
+    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoPlatform}`);
   });
 
   socket.on("play_video", ({ currentTime }) => {
@@ -126,7 +130,6 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    console.log(`▶️ Play at ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_play", { currentTime });
   });
 
@@ -138,7 +141,6 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    console.log(`⏸️ Pause at ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_pause", { currentTime });
   });
 
@@ -149,7 +151,6 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    console.log(`⏩ Seek to ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_seek", { currentTime });
   });
 
@@ -215,6 +216,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Watch Party Server running!`);
+  console.log(`\n🎬 Universal Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
 });
