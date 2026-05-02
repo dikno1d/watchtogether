@@ -2,21 +2,63 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+const ytdl = require("ytdl-core");
+const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
-  pingInterval: 5000, // More frequent pings for better sync
+  pingInterval: 5000,
   pingTimeout: 10000,
   transports: ['websocket', 'polling']
 });
 
-// Serve static files
+app.use(cors());
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Video streaming endpoint - server streams YouTube directly
+app.get("/stream/:videoId", async (req, res) => {
+  const videoId = req.params.videoId;
+  const range = req.headers.range;
+  
+  if (!videoId) {
+    return res.status(400).send("Video ID required");
+  }
+  
+  try {
+    const info = await ytdl.getInfo(videoId);
+    const format = ytdl.chooseFormat(info.formats, { 
+      quality: 'lowest', // Use lowest for smooth streaming
+      filter: 'audioandvideo' 
+    });
+    
+    const videoUrl = format.url;
+    
+    // Proxy the video stream
+    const https = require('https');
+    const request = https.get(videoUrl, (response) => {
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4',
+        'Content-Length': response.headers['content-length'],
+        'Accept-Ranges': 'bytes',
+      });
+      response.pipe(res);
+    });
+    
+    request.on('error', (err) => {
+      console.error('Stream error:', err);
+      res.status(500).send('Stream error');
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Error fetching video');
+  }
 });
 
 // Room storage
@@ -31,12 +73,6 @@ function getRoom(roomId) {
   return rooms[roomId];
 }
 
-function serverTime(room) {
-  if (!room.video.playing) return room.video.currentTime;
-  const elapsed = (Date.now() - room.video.updatedAt) / 1000;
-  return room.video.currentTime + elapsed;
-}
-
 function roomInfo(roomId) {
   const room = rooms[roomId];
   if (!room) return null;
@@ -48,11 +84,9 @@ function roomInfo(roomId) {
       name: d.name,
       color: d.color,
     })),
-    video: {
-      url: room.video.url,
-      playing: room.video.playing,
-      currentTime: serverTime(room),
-    },
+    video: room.video,
+    isPlaying: room.isPlaying,
+    currentTime: room.currentTime,
   };
 }
 
@@ -66,8 +100,11 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
-      video: { url: "", playing: false, currentTime: 0, updatedAt: Date.now() },
-      lastSync: Date.now(),
+      video: null,
+      videoId: null,
+      isPlaying: false,
+      currentTime: 0,
+      lastUpdate: Date.now(),
     };
     
     socket.join(roomId);
@@ -109,66 +146,77 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("video_load", ({ url }) => {
+  socket.on("load_video", async ({ url }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.video = { url, playing: false, currentTime: 0, updatedAt: Date.now() };
-    io.to(socket.data.roomId).emit("video_state", {
-      url,
-      playing: false,
-      currentTime: 0,
-      timestamp: Date.now(),
-    });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}`);
+    try {
+      // Extract video ID
+      let videoId = null;
+      let match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/);
+      if (match) videoId = match[1];
+      
+      if (!videoId) {
+        cb({ error: "Invalid YouTube URL" });
+        return;
+      }
+      
+      const videoInfo = await ytdl.getInfo(videoId);
+      
+      room.video = {
+        id: videoId,
+        title: videoInfo.videoDetails.title,
+        duration: parseInt(videoInfo.videoDetails.lengthSeconds),
+        thumbnail: videoInfo.videoDetails.thumbnails[0].url,
+      };
+      room.videoId = videoId;
+      room.currentTime = 0;
+      room.isPlaying = false;
+      
+      io.to(socket.data.roomId).emit("video_loaded", {
+        video: room.video,
+        streamUrl: `/stream/${videoId}`,
+      });
+      
+      cb({ success: true, video: room.video });
+      console.log(`🎬 Video loaded in ${socket.data.roomId}: ${room.video.title}`);
+    } catch (error) {
+      console.error("Load video error:", error);
+      cb({ error: "Failed to load video" });
+    }
   });
 
-  socket.on("video_play", () => {
+  socket.on("play_video", () => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    const ct = serverTime(room);
-    room.video.playing = true;
-    room.video.currentTime = ct;
-    room.video.updatedAt = Date.now();
-    
-    io.to(socket.data.roomId).emit("video_state", {
-      url: room.video.url,
-      playing: true,
-      currentTime: ct,
-      timestamp: Date.now(),
-    });
+    room.isPlaying = true;
+    room.lastUpdate = Date.now();
+    io.to(socket.data.roomId).emit("video_play", { currentTime: room.currentTime });
   });
 
-  socket.on("video_pause", ({ currentTime }) => {
+  socket.on("pause_video", () => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.video.playing = false;
-    room.video.currentTime = currentTime;
-    room.video.updatedAt = Date.now();
-    
-    io.to(socket.data.roomId).emit("video_state", {
-      url: room.video.url,
-      playing: false,
-      currentTime,
-      timestamp: Date.now(),
-    });
+    room.isPlaying = false;
+    io.to(socket.data.roomId).emit("video_pause", { currentTime: room.currentTime });
   });
 
-  socket.on("video_seek", ({ currentTime }) => {
+  socket.on("seek_video", ({ currentTime }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.video.currentTime = currentTime;
-    room.video.updatedAt = Date.now();
+    room.currentTime = currentTime;
+    io.to(socket.data.roomId).emit("video_seek", { currentTime });
+  });
+
+  socket.on("sync_time", ({ currentTime }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room || room.host !== socket.id) return;
     
-    io.to(socket.data.roomId).emit("video_state", {
-      url: room.video.url,
-      playing: room.video.playing,
-      currentTime,
-      timestamp: Date.now(),
-    });
+    room.currentTime = currentTime;
+    socket.to(socket.data.roomId).emit("time_sync", { currentTime });
   });
 
   socket.on("chat_send", ({ text }) => {
@@ -186,40 +234,13 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Optimized heartbeat - more frequent sync for laggy connections
-  socket.on("heartbeat", ({ currentTime, bufferHealth }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.video.currentTime = currentTime;
-    room.video.updatedAt = Date.now();
-    
-    // Send sync with buffer health info
-    socket.to(socket.data.roomId).emit("sync_time", { 
-      currentTime,
-      bufferHealth,
-      timestamp: Date.now(),
-    });
-  });
-
-  socket.on("request_sync", () => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    
-    socket.emit("video_state", {
-      url: room.video.url,
-      playing: room.video.playing,
-      currentTime: serverTime(room),
-      timestamp: Date.now(),
-    });
-  });
-
   socket.on("disconnect", () => {
     const roomId = socket.data.roomId;
     const room = getRoom(roomId);
     if (!room) return;
 
     const member = room.members.get(socket.id);
+    const wasHost = room.host === socket.id;
     room.members.delete(socket.id);
 
     if (room.members.size === 0) {
@@ -228,10 +249,13 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (room.host === socket.id) {
-      room.host = [...room.members.keys()][0];
-      io.to(room.host).emit("you_are_host");
-      console.log(`👑 Host transferred in ${roomId}`);
+    // Transfer host if needed
+    if (wasHost) {
+      const newHost = [...room.members.keys()][0];
+      room.host = newHost;
+      io.to(newHost).emit("you_are_host");
+      io.to(roomId).emit("host_changed", { newHostId: newHost });
+      console.log(`👑 Host transferred to ${newHost} in ${roomId}`);
     }
 
     io.to(roomId).emit("room_update", roomInfo(roomId));
@@ -242,11 +266,13 @@ io.on("connection", (socket) => {
         ts: Date.now(),
       });
     }
+    console.log(`❌ User disconnected: ${socket.id}`);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 WatchTogether server running!`);
+  console.log(`\n🎬 WatchTogether Streaming Server running!`);
   console.log(`📍 Local: http://localhost:${PORT}`);
+  console.log(`🌍 Ready for deployment\n`);
 });
