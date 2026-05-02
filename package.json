@@ -1,7 +1,7 @@
 {
-  "name": "watch-party-final",
-  "version": "1.0.0",
-  "description": "No buffer YouTube watch party",
+  "name": "universal-watch-party",
+  "version": "2.0.0",
+  "description": "Watch any video from any website with friends",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
