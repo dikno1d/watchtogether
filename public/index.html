@@ -296,9 +296,7 @@
 <div id="toast"></div>
 
 <script>
-// Wait for DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-  // DOM elements
   let socket = null;
   let myId = null;
   let myName = "";
@@ -313,7 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let uiInterval = null;
   const DRIFT = 1.5;
 
-  // Helper functions
   const fmt = s => { s=Math.floor(s||0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
   
   let toastTimeout = null;
@@ -339,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  // UI update
   function applyHostUI() {
     const hostBar = document.getElementById("hostBar");
     const guestBar = document.getElementById("guestBar");
@@ -408,7 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.clipboard.writeText(roomId).then(()=>toast("Room code copied! Share it with friends."));
   }
 
-  // Player sync
   function syncPlayerTo(st) {
     if(!pReady || !player) return;
     try {
@@ -436,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // YouTube player
   let playerCreationPromise = null;
   function makePlayer(videoId, startSec, autoplay) {
     if(playerCreationPromise) return;
@@ -528,7 +522,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Socket & app
   function initSocket(name, onConn) {
     socket = io({
       path: '/api/socket',
@@ -592,7 +585,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if(info.video && info.video.url) applyState(info.video);
   }
 
-  // Control handlers
   function togglePlay() {
     if (!isHost || !player || !pReady) return;
     try {
@@ -684,7 +676,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatInput = document.getElementById("chatInput");
   if(chatInput) chatInput.addEventListener('keypress', chatKey);
   
-  // Initialize display
   document.getElementById("createForm").style.display = "block";
   document.getElementById("joinForm").style.display = "none";
 });
