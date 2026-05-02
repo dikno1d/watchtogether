@@ -2,7 +2,6 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
-const axios = require("axios");
 
 const app = express();
 const server = http.createServer(app);
@@ -18,101 +17,6 @@ app.use(express.static(path.join(__dirname, "public")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
-
-// Video info proxy - get video metadata from any URL
-app.get("/api/video-info", async (req, res) => {
-  const url = req.query.url;
-  if (!url) return res.status(400).json({ error: "No URL provided" });
-  
-  try {
-    // Detect video type
-    const videoInfo = await detectVideoSource(url);
-    res.json(videoInfo);
-  } catch (error) {
-    console.error("Video detection error:", error);
-    res.status(500).json({ error: "Could not fetch video info" });
-  }
-});
-
-async function detectVideoSource(url) {
-  // YouTube
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    const videoId = extractYouTubeId(url);
-    return {
-      type: 'youtube',
-      embedUrl: `https://www.youtube.com/embed/${videoId}`,
-      videoId: videoId,
-      title: 'YouTube Video',
-      platform: 'youtube'
-    };
-  }
-  
-  // Vimeo
-  if (url.includes('vimeo.com')) {
-    const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
-    return {
-      type: 'vimeo',
-      embedUrl: `https://player.vimeo.com/video/${videoId}`,
-      videoId: videoId,
-      title: 'Vimeo Video',
-      platform: 'vimeo'
-    };
-  }
-  
-  // Dailymotion
-  if (url.includes('dailymotion.com')) {
-    const videoId = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/)?.[1];
-    return {
-      type: 'dailymotion',
-      embedUrl: `https://www.dailymotion.com/embed/video/${videoId}`,
-      videoId: videoId,
-      title: 'Dailymotion Video',
-      platform: 'dailymotion'
-    };
-  }
-  
-  // Twitch
-  if (url.includes('twitch.tv')) {
-    const channel = url.match(/twitch\.tv\/([^\/?]+)/)?.[1];
-    return {
-      type: 'twitch',
-      embedUrl: `https://player.twitch.tv/?channel=${channel}&parent=${process.env.DOMAIN || 'localhost'}`,
-      videoId: channel,
-      title: `Twitch: ${channel}`,
-      platform: 'twitch'
-    };
-  }
-  
-  // Direct MP4/WebM video URL
-  if (url.match(/\.(mp4|webm|ogg|mov|mkv)(\?|$)/i)) {
-    return {
-      type: 'direct',
-      directUrl: url,
-      title: 'Video File',
-      platform: 'direct'
-    };
-  }
-  
-  // Generic embed - try to detect
-  return {
-    type: 'generic',
-    url: url,
-    title: 'Video',
-    platform: 'generic'
-  };
-}
-
-function extractYouTubeId(url) {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/,
-    /youtube\.com\/embed\/([^?]+)/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
 
 // Room management
 const rooms = {};
@@ -135,7 +39,8 @@ function roomInfo(roomId) {
     members: Array.from(room.members.entries()).map(([id, d]) => ({
       id, name: d.name, color: d.color,
     })),
-    video: room.video,
+    videoUrl: room.videoUrl,
+    videoType: room.videoType,
     isPlaying: room.isPlaying,
     currentTime: room.currentTime
   };
@@ -151,7 +56,8 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
-      video: null,
+      videoUrl: null,
+      videoType: null,
       isPlaying: false,
       currentTime: 0,
       lastUpdate: Date.now()
@@ -196,23 +102,25 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("load_video", ({ videoInfo }, cb) => {
+  socket.on("load_video", ({ videoUrl, videoType }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.video = videoInfo;
+    room.videoUrl = videoUrl;
+    room.videoType = videoType;
     room.isPlaying = false;
     room.currentTime = 0;
     room.lastUpdate = Date.now();
     
     io.to(socket.data.roomId).emit("video_loaded", {
-      video: videoInfo,
+      videoUrl: videoUrl,
+      videoType: videoType,
       currentTime: 0,
       isPlaying: false
     });
     
     cb({ success: true });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoInfo.platform}`);
+    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoType}`);
   });
 
   socket.on("play_video", ({ currentTime }) => {
@@ -308,7 +216,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Universal Watch Party Server running!`);
+  console.log(`\n🎬 Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
-  console.log(`🌍 Ready for any video platform!\n`);
 });
