@@ -523,9 +523,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initSocket(name, onConn) {
-    socket = io;
+    socket = io();
     socket.on("connect", () => { myId = socket.id; myName = name; onConn(); });
-    socket.on("connect_error", () => setErr("❌ Cannot connect to server. Make sure it's deployed."));
+    socket.on("connect_error", () => setErr("❌ Cannot connect to server. Please refresh."));
     socket.on("disconnect", () => toast("⚠️ Disconnected from server"));
     socket.on("room_update", info => updateRoom(info));
     socket.on("you_are_host", () => { isHost = true; applyHostUI(); toast("👑 You are now the host!"); });
