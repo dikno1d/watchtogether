@@ -13,71 +13,17 @@ const io = new Server(server, {
 });
 
 app.use(express.static(path.join(__dirname, "public")));
-app.use(express.json());
-
-// Helper to extract YouTube ID from any YouTube URL
-function extractYouTubeId(url) {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^?&]+)/,
-    /youtube\.com\/watch\?.*v=([^&]+)/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
-
-// Detect video platform
-function detectPlatform(url) {
-  const urlLower = url.toLowerCase();
-  
-  // YouTube (with full sync support)
-  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
-    const videoId = extractYouTubeId(url);
-    if (videoId) {
-      return {
-        platform: 'youtube',
-        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0`,
-        videoId: videoId,
-        syncable: true
-      };
-    }
-  }
-  
-  // Amazon Mini TV - Needs special handling
-  if (urlLower.includes('amazon') && (urlLower.includes('/minitv') || urlLower.includes('mini-tv'))) {
-    return {
-      platform: 'amazon-mini-tv',
-      embedUrl: url, // Direct URL - will open in new tab with instructions
-      videoId: null,
-      syncable: false, // Can't sync directly due to DRM
-      requiresExternal: true
-    };
-  }
-  
-  // Other platforms (limited sync)
-  if (urlLower.includes('vimeo.com')) {
-    const match = url.match(/vimeo\.com\/(\d+)/);
-    if (match) {
-      return {
-        platform: 'vimeo',
-        embedUrl: `https://player.vimeo.com/video/${match[1]}`,
-        videoId: match[1],
-        syncable: false
-      };
-    }
-  }
-  
-  return null;
-}
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 const rooms = {};
-const COLORS = ["#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF", "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585"];
+const COLORS = [
+  "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
+  "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585",
+  "#48CAE4", "#E9C46A"
+];
 
 function getRoom(roomId) {
   return rooms[roomId];
@@ -92,11 +38,11 @@ function roomInfo(roomId) {
     members: Array.from(room.members.entries()).map(([id, d]) => ({
       id, name: d.name, color: d.color,
     })),
-    videoUrl: room.videoUrl,
+    videoId: room.videoId,
     videoPlatform: room.videoPlatform,
+    videoUrl: room.videoUrl,
     isPlaying: room.isPlaying,
-    currentTime: room.currentTime,
-    syncable: room.syncable
+    currentTime: room.currentTime
   };
 }
 
@@ -110,12 +56,12 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
-      videoUrl: null,
+      videoId: null,
       videoPlatform: null,
+      videoUrl: null,
       isPlaying: false,
       currentTime: 0,
-      lastUpdate: Date.now(),
-      syncable: false
+      lastUpdate: Date.now()
     };
     
     socket.join(roomId);
@@ -135,7 +81,7 @@ io.on("connection", (socket) => {
     }
     
     if (room.members.size >= 20) {
-      return cb({ ok: false, error: "❌ Room is full" });
+      return cb({ ok: false, error: "❌ Room is full (max 20 members)" });
     }
 
     const usedColors = new Set([...room.members.values()].map((m) => m.color));
@@ -157,27 +103,27 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("load_video", ({ videoUrl, videoPlatform, syncable }, cb) => {
+  socket.on("load_video", ({ videoId, platform, videoUrl }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
+    room.videoId = videoId;
+    room.videoPlatform = platform;
     room.videoUrl = videoUrl;
-    room.videoPlatform = videoPlatform;
-    room.syncable = syncable || false;
     room.isPlaying = false;
     room.currentTime = 0;
     room.lastUpdate = Date.now();
     
     io.to(socket.data.roomId).emit("video_loaded", {
+      videoId: videoId,
+      videoPlatform: platform,
       videoUrl: videoUrl,
-      videoPlatform: videoPlatform,
-      syncable: room.syncable,
       currentTime: 0,
       isPlaying: false
     });
     
     cb({ success: true });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoPlatform}`);
+    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${platform}`);
   });
 
   socket.on("play_video", ({ currentTime }) => {
@@ -188,6 +134,7 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
+    console.log(`▶️ Play at ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_play", { currentTime });
   });
 
@@ -199,6 +146,7 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
+    console.log(`⏸️ Pause at ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_pause", { currentTime });
   });
 
@@ -209,7 +157,25 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
+    console.log(`⏩ Seek to ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_seek", { currentTime });
+  });
+
+  // Force sync - host sends to all viewers
+  socket.on("force_sync", ({ currentTime, isPlaying }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    
+    // Update room state
+    room.currentTime = currentTime;
+    room.isPlaying = isPlaying;
+    room.lastUpdate = Date.now();
+    
+    // Broadcast to everyone EXCEPT sender
+    socket.to(socket.data.roomId).emit("force_sync_response", { 
+      currentTime: currentTime, 
+      isPlaying: isPlaying 
+    });
   });
 
   socket.on("chat_send", ({ text }) => {
@@ -263,6 +229,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Universal Watch Party Server running!`);
+  console.log(`\n🎬 Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
 });
