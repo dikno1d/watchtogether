@@ -2,8 +2,6 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
-const axios = require("axios");
-const cheerio = require("cheerio");
 
 const app = express();
 const server = http.createServer(app);
@@ -17,54 +15,48 @@ const io = new Server(server, {
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
-// API endpoint to get video embed info
-app.post("/api/get-embed-url", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "No URL provided" });
-  
-  try {
-    const embedInfo = await getEmbedUrl(url);
-    res.json(embedInfo);
-  } catch (error) {
-    console.error("Error getting embed URL:", error);
-    res.status(500).json({ error: "Failed to get video embed URL" });
+// Helper to extract YouTube ID from any YouTube URL
+function extractYouTubeId(url) {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^?&]+)/,
+    /youtube\.com\/watch\?.*v=([^&]+)/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
   }
-});
+  return null;
+}
 
-async function getEmbedUrl(url) {
+// Detect video platform
+function detectPlatform(url) {
   const urlLower = url.toLowerCase();
   
-  // YouTube - Fix for m.youtube.com and all YouTube URLs
+  // YouTube (with full sync support)
   if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
-    let videoId = null;
-    
-    // Handle youtu.be format
-    let match = url.match(/youtu\.be\/([^?&]+)/);
-    if (match) videoId = match[1];
-    
-    // Handle youtube.com/watch?v=
-    match = url.match(/[?&]v=([^&]+)/);
-    if (match) videoId = match[1];
-    
-    // Handle youtube.com/embed/
-    match = url.match(/\/embed\/([^?&]+)/);
-    if (match) videoId = match[1];
-    
-    // Handle m.youtube.com
-    match = url.match(/m\.youtube\.com\/watch\?v=([^&]+)/);
-    if (match) videoId = match[1];
-    
+    const videoId = extractYouTubeId(url);
     if (videoId) {
       return {
         platform: 'youtube',
-        embedUrl: `https://www.youtube.com/embed/${videoId}`,
+        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0`,
         videoId: videoId,
-        title: 'YouTube Video'
+        syncable: true
       };
     }
   }
   
-  // Vimeo
+  // Amazon Mini TV - Needs special handling
+  if (urlLower.includes('amazon') && (urlLower.includes('/minitv') || urlLower.includes('mini-tv'))) {
+    return {
+      platform: 'amazon-mini-tv',
+      embedUrl: url, // Direct URL - will open in new tab with instructions
+      videoId: null,
+      syncable: false, // Can't sync directly due to DRM
+      requiresExternal: true
+    };
+  }
+  
+  // Other platforms (limited sync)
   if (urlLower.includes('vimeo.com')) {
     const match = url.match(/vimeo\.com\/(\d+)/);
     if (match) {
@@ -72,88 +64,12 @@ async function getEmbedUrl(url) {
         platform: 'vimeo',
         embedUrl: `https://player.vimeo.com/video/${match[1]}`,
         videoId: match[1],
-        title: 'Vimeo Video'
+        syncable: false
       };
     }
   }
   
-  // Dailymotion
-  if (urlLower.includes('dailymotion.com')) {
-    const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
-    if (match) {
-      return {
-        platform: 'dailymotion',
-        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`,
-        videoId: match[1],
-        title: 'Dailymotion Video'
-      };
-    }
-  }
-  
-  // Twitch
-  if (urlLower.includes('twitch.tv')) {
-    const match = url.match(/twitch\.tv\/([^\/?]+)/);
-    if (match) {
-      return {
-        platform: 'twitch',
-        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${process.env.DOMAIN || 'localhost'}`,
-        videoId: match[1],
-        title: `Twitch: ${match[1]}`
-      };
-    }
-  }
-  
-  // Facebook
-  if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch')) {
-    return {
-      platform: 'facebook',
-      embedUrl: url,
-      title: 'Facebook Video'
-    };
-  }
-  
-  // TikTok
-  if (urlLower.includes('tiktok.com')) {
-    return {
-      platform: 'tiktok',
-      embedUrl: url,
-      title: 'TikTok Video'
-    };
-  }
-  
-  // Twitter/X
-  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
-    return {
-      platform: 'twitter',
-      embedUrl: url,
-      title: 'Twitter Video'
-    };
-  }
-  
-  // Instagram
-  if (urlLower.includes('instagram.com')) {
-    return {
-      platform: 'instagram',
-      embedUrl: url,
-      title: 'Instagram Video'
-    };
-  }
-  
-  // Direct video files
-  if (url.match(/\.(mp4|webm|ogg|mov|mkv|avi)(\?|$)/i)) {
-    return {
-      platform: 'direct',
-      embedUrl: url,
-      title: 'Video File'
-    };
-  }
-  
-  // Generic embed
-  return {
-    platform: 'generic',
-    embedUrl: url,
-    title: 'Embedded Video'
-  };
+  return null;
 }
 
 app.get("*", (req, res) => {
@@ -161,11 +77,7 @@ app.get("*", (req, res) => {
 });
 
 const rooms = {};
-const COLORS = [
-  "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
-  "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585",
-  "#48CAE4", "#E9C46A", "#FF6B4A", "#4ECDC4"
-];
+const COLORS = ["#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF", "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585"];
 
 function getRoom(roomId) {
   return rooms[roomId];
@@ -183,7 +95,8 @@ function roomInfo(roomId) {
     videoUrl: room.videoUrl,
     videoPlatform: room.videoPlatform,
     isPlaying: room.isPlaying,
-    currentTime: room.currentTime
+    currentTime: room.currentTime,
+    syncable: room.syncable
   };
 }
 
@@ -201,7 +114,8 @@ io.on("connection", (socket) => {
       videoPlatform: null,
       isPlaying: false,
       currentTime: 0,
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
+      syncable: false
     };
     
     socket.join(roomId);
@@ -221,7 +135,7 @@ io.on("connection", (socket) => {
     }
     
     if (room.members.size >= 20) {
-      return cb({ ok: false, error: "❌ Room is full (max 20 members)" });
+      return cb({ ok: false, error: "❌ Room is full" });
     }
 
     const usedColors = new Set([...room.members.values()].map((m) => m.color));
@@ -243,12 +157,13 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("load_video", ({ videoUrl, videoPlatform }, cb) => {
+  socket.on("load_video", ({ videoUrl, videoPlatform, syncable }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
     room.videoUrl = videoUrl;
     room.videoPlatform = videoPlatform;
+    room.syncable = syncable || false;
     room.isPlaying = false;
     room.currentTime = 0;
     room.lastUpdate = Date.now();
@@ -256,6 +171,7 @@ io.on("connection", (socket) => {
     io.to(socket.data.roomId).emit("video_loaded", {
       videoUrl: videoUrl,
       videoPlatform: videoPlatform,
+      syncable: room.syncable,
       currentTime: 0,
       isPlaying: false
     });
