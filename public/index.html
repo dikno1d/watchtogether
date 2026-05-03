@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Watch Party - Perfect Sync 🎬</title>
+<title>Screen Share Watch Party 🎬</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<script src="https://www.youtube.com/iframe_api"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -219,7 +218,7 @@
     animation: pulse 2s infinite;
   }
   
-  .sync-dot.warning {
+  .sync-dot.streaming {
     background: var(--warning);
   }
   
@@ -241,27 +240,17 @@
     background: #000;
   }
   
-  .url-bar {
+  .share-controls {
     padding: 12px 16px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    align-items: center;
   }
   
-  .url-bar input {
-    flex: 1;
-    padding: 10px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    font-size: 13px;
-    min-width: 200px;
-  }
-  
-  .url-bar button {
+  .share-controls button {
     padding: 10px 20px;
     background: var(--accent);
     border: none;
@@ -272,22 +261,21 @@
     transition: 0.2s;
   }
   
-  .url-bar button:hover {
+  .share-controls button:hover {
     background: var(--accent2);
   }
   
-  .platform-badge {
-    background: var(--accent);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 11px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+  .share-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
   
-  .platform-badge.warning {
-    background: var(--warning);
+  .share-controls .stop-share {
+    background: var(--danger);
+  }
+  
+  .share-controls .stop-share:hover {
+    background: #dc2626;
   }
   
   .player-container {
@@ -300,17 +288,22 @@
   .player-wrapper {
     width: 100%;
     height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
-  #youtube-player {
+  #remote-video {
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    background: #000;
   }
   
-  .amazon-frame {
+  #local-video {
     width: 100%;
     height: 100%;
-    border: none;
+    object-fit: contain;
     display: none;
   }
   
@@ -325,112 +318,26 @@
     background: #000;
     padding: 20px;
     border-radius: 12px;
+    pointer-events: none;
   }
   
-  .amazon-instructions {
+  .instructions {
     background: var(--surface);
     padding: 24px;
     border-radius: 16px;
     text-align: center;
-    max-width: 400px;
+    max-width: 500px;
+    pointer-events: auto;
   }
   
-  .amazon-instructions h3 {
+  .instructions h3 {
     margin-bottom: 16px;
     color: var(--warning);
   }
   
-  .amazon-instructions p {
+  .instructions p {
     margin-bottom: 12px;
     font-size: 14px;
-  }
-  
-  .amazon-instructions a {
-    display: inline-block;
-    margin: 16px 0;
-    padding: 12px 24px;
-    background: var(--accent);
-    color: white;
-    text-decoration: none;
-    border-radius: 12px;
-  }
-  
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    flex-wrap: wrap;
-  }
-  
-  .control-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
-    color: var(--text);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    transition: 0.2s;
-  }
-  
-  .control-btn:hover:not(:disabled) {
-    background: var(--accent);
-    border-color: var(--accent);
-    transform: scale(1.05);
-  }
-  
-  .control-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  
-  .seek-bar {
-    flex: 1;
-    height: 5px;
-    border-radius: 3px;
-    background: var(--sur2);
-    -webkit-appearance: none;
-  }
-  
-  .seek-bar::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-  }
-  
-  .time {
-    font-size: 12px;
-    font-family: monospace;
-    color: var(--muted);
-    min-width: 100px;
-    text-align: center;
-  }
-  
-  .volume-slider {
-    width: 80px;
-    height: 4px;
-    -webkit-appearance: none;
-    background: var(--sur2);
-    border-radius: 2px;
-  }
-  
-  .volume-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
   }
   
   .sidebar {
@@ -490,6 +397,14 @@
   .host-tag {
     font-size: 9px;
     background: var(--accent);
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: auto;
+  }
+  
+  .watching-tag {
+    font-size: 9px;
+    background: var(--success);
     padding: 2px 6px;
     border-radius: 10px;
     margin-left: auto;
@@ -615,19 +530,27 @@
     opacity: 1;
   }
   
+  .quality-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.7);
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 10px;
+    z-index: 20;
+  }
+  
   @media (max-width: 700px) {
     .sidebar { width: 240px; }
     .message-bubble { max-width: 160px; }
-    .time { min-width: 80px; font-size: 11px; }
-    .controls { gap: 8px; }
   }
   
   @media (max-width: 550px) {
     .main { flex-direction: column; }
     .sidebar { width: 100%; max-height: 280px; }
-    .url-bar { flex-direction: column; }
-    .url-bar input { width: 100%; }
-    .url-bar button { width: 100%; }
+    .share-controls { flex-direction: column; }
+    .share-controls button { width: 100%; }
     .topbar { flex-direction: column; align-items: flex-start; height: auto; padding: 12px; }
     .member-count { align-self: flex-end; }
   }
@@ -637,8 +560,8 @@
 
 <div id="lobby">
   <div class="card">
-    <div class="logo">Watch Party</div>
-    <p class="sub">Watch YouTube & Amazon Mini TV together!</p>
+    <div class="logo">Screen Share Watch Party</div>
+    <p class="sub">Watch ANY content together - Amazon Mini TV, Netflix, Disney+, YouTube, and more!</p>
     <div class="tabs">
       <button class="tab active" id="tabCreate">Create Room</button>
       <button class="tab" id="tabJoin">Join Room</button>
@@ -668,7 +591,7 @@
 <div id="app">
   <div class="topbar">
     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-      <span style="font-weight: 800;">🎬 Watch Party</span>
+      <span style="font-weight: 800;">🎬 Screen Share Party</span>
       <div class="room-info">
         <span>Room: <strong id="roomCode">------</strong></span>
         <button class="copy-btn" id="copyRoomCode">📋</button>
@@ -684,40 +607,30 @@
   
   <div class="main">
     <div class="video-panel">
-      <div class="url-bar" id="hostControls">
-        <input type="text" id="videoUrl" placeholder="YouTube URL OR Amazon Mini TV URL">
-        <button id="loadVideoBtn">🎬 Load Video</button>
+      <div class="share-controls" id="hostControls" style="display: none;">
+        <button id="startShareBtn">🎥 Start Screen Sharing</button>
+        <button id="stopShareBtn" class="stop-share" style="display: none;">🛑 Stop Sharing</button>
+        <span id="sharingStatus" style="color: var(--muted); font-size: 12px;"></span>
       </div>
-      <div class="url-bar" id="guestControls" style="display: none;">
-        <span style="color: var(--muted);">⏳ Waiting for host to load a video...</span>
-      </div>
-      
-      <div style="padding: 8px 16px; background: var(--sur2); border-bottom: 1px solid var(--border); display: none;" id="platformInfo">
-        <span>📺 Current:</span>
-        <span class="platform-badge" id="platformBadge">YouTube</span>
+      <div class="share-controls" id="guestControls" style="display: none;">
+        <span id="waitingStatus" style="color: var(--muted);">⏳ Waiting for host to start sharing...</span>
       </div>
       
       <div class="player-container">
         <div class="player-wrapper">
-          <div id="youtube-player"></div>
-          <iframe id="amazon-frame" class="amazon-frame" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+          <video id="remote-video" autoplay playsinline></video>
+          <video id="local-video" autoplay playsinline muted></video>
         </div>
         <div class="placeholder" id="placeholder">
-          <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
-          <p>No video loaded</p>
-          <p style="font-size: 12px; margin-top: 8px;">Host: Paste a YouTube or Amazon Mini TV URL</p>
+          <div class="instructions">
+            <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
+            <h3>Welcome to Screen Share Watch Party!</h3>
+            <p><strong>For Host:</strong> Click "Start Screen Sharing" and select your screen/window to share</p>
+            <p><strong>For Viewers:</strong> Sit back and enjoy! The host's screen will appear here</p>
+            <p style="font-size: 12px; margin-top: 16px; color: var(--muted);">💡 Perfect for Amazon Mini TV, Netflix, Disney+, and any other streaming service!</p>
+          </div>
         </div>
-      </div>
-      
-      <div class="controls">
-        <button class="control-btn" id="playPauseBtn" disabled>▶</button>
-        <button class="control-btn" id="manualSyncBtn" style="display: none;" title="Sync with host">🔄</button>
-        <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0" disabled>
-        <span class="time" id="timeDisplay">0:00 / 0:00</span>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span>🔊</span>
-          <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
-        </div>
+        <div class="quality-badge" id="qualityBadge" style="display: none;"></div>
       </div>
     </div>
     
@@ -746,15 +659,20 @@ let myId;
 let myName;
 let roomId;
 let isHost = false;
-let player = null;
-let playerReady = false;
-let isSeeking = false;
-let currentVideoId = null;
-let currentPlatform = null;
-let currentAmazonUrl = null;
-let forceSyncInterval;
+let peerConnection = null;
+let isSharing = false;
+let viewers = new Map();
 
-function showToast(msg, duration = 2000) {
+// WebRTC Configuration
+const configuration = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
+  ]
+};
+
+function showToast(msg, duration = 3000) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -763,165 +681,6 @@ function showToast(msg, duration = 2000) {
 
 function showError(msg) {
   document.getElementById('lobbyError').textContent = msg;
-}
-
-function formatTime(seconds) {
-  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-function extractVideoId(url) {
-  if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/,
-    /youtube\.com\/embed\/([^?]+)/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-}
-
-function detectPlatform(url) {
-  const urlLower = url.toLowerCase();
-  
-  // YouTube
-  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
-    const videoId = extractVideoId(url);
-    if (videoId) {
-      return { platform: 'youtube', videoId: videoId };
-    }
-  }
-  
-  // Amazon Mini TV
-  if (urlLower.includes('amazon') && (urlLower.includes('minitv') || urlLower.includes('mini-tv'))) {
-    return { platform: 'amazon', url: url };
-  }
-  
-  return null;
-}
-
-function createYouTubePlayer(videoId, startTime = 0, autoPlay = false) {
-  const placeholder = document.getElementById('placeholder');
-  const youtubeDiv = document.getElementById('youtube-player');
-  const amazonFrame = document.getElementById('amazon-frame');
-  
-  placeholder.style.display = 'none';
-  youtubeDiv.style.display = 'block';
-  amazonFrame.style.display = 'none';
-  amazonFrame.src = '';
-  
-  document.getElementById('platformInfo').style.display = 'flex';
-  document.getElementById('platformBadge').textContent = 'YouTube';
-  document.getElementById('platformBadge').classList.remove('warning');
-  
-  if (player) {
-    try { player.destroy(); } catch(e) {}
-    player = null;
-    playerReady = false;
-  }
-  
-  console.log(`Creating YouTube player: ${videoId}, start: ${startTime}`);
-  
-  player = new YT.Player('youtube-player', {
-    height: '100%',
-    width: '100%',
-    videoId: videoId,
-    playerVars: {
-      controls: 1,
-      modestbranding: 1,
-      rel: 0,
-      origin: window.location.origin,
-      autoplay: autoPlay ? 1 : 0,
-      start: Math.floor(startTime),
-      playsinline: 1
-    },
-    events: {
-      onReady: (event) => {
-        playerReady = true;
-        event.target.setVolume(parseInt(document.getElementById('volumeSlider').value));
-        
-        if (startTime > 0 && !autoPlay) {
-          event.target.seekTo(startTime, true);
-          event.target.pauseVideo();
-        }
-        
-        showToast('✅ YouTube player ready!');
-        document.getElementById('syncText').textContent = 'Synced';
-        document.getElementById('syncDot').classList.remove('warning');
-      },
-      onStateChange: (event) => {
-        const playBtn = document.getElementById('playPauseBtn');
-        const state = event.data;
-        
-        if (state === YT.PlayerState.PLAYING) {
-          playBtn.textContent = '⏸';
-          document.getElementById('syncText').textContent = 'Playing';
-          // Host sends play state to viewers
-          if (isHost && playerReady) {
-            socket.emit('play_video', { currentTime: player.getCurrentTime() });
-          }
-        } else if (state === YT.PlayerState.PAUSED) {
-          playBtn.textContent = '▶';
-          document.getElementById('syncText').textContent = 'Paused';
-          // Host sends pause state to viewers
-          if (isHost && playerReady) {
-            socket.emit('pause_video', { currentTime: player.getCurrentTime() });
-          }
-        } else if (state === YT.PlayerState.BUFFERING) {
-          document.getElementById('syncText').textContent = 'Buffering...';
-        } else if (state === YT.PlayerState.ENDED) {
-          playBtn.textContent = '▶';
-          document.getElementById('syncText').textContent = 'Ended';
-        }
-      },
-      onError: (event) => {
-        console.error('YouTube error:', event.data);
-        showToast('❌ Failed to load YouTube video');
-        document.getElementById('placeholder').style.display = 'flex';
-        playerReady = false;
-      }
-    }
-  });
-}
-
-function showAmazonMiniTV(url) {
-  const placeholder = document.getElementById('placeholder');
-  const youtubeDiv = document.getElementById('youtube-player');
-  const amazonFrame = document.getElementById('amazon-frame');
-  
-  youtubeDiv.style.display = 'none';
-  amazonFrame.style.display = 'none';
-  
-  document.getElementById('platformInfo').style.display = 'flex';
-  document.getElementById('platformBadge').textContent = 'Amazon Mini TV';
-  document.getElementById('platformBadge').classList.add('warning');
-  document.getElementById('syncDot').classList.add('warning');
-  document.getElementById('syncText').textContent = 'Manual sync';
-  
-  // Show instructions
-  placeholder.innerHTML = `
-    <div class="amazon-instructions">
-      <h3>📺 Amazon Mini TV</h3>
-      <p>Due to DRM protection, each person needs to open the link separately:</p>
-      <p><strong style="word-break: break-all;">${url}</strong></p>
-      <a href="${url}" target="_blank" rel="noopener noreferrer">🎬 Open Amazon Mini TV</a>
-      <p style="font-size: 12px; margin-top: 16px;">💡 Tip: Use chat to coordinate playback! Say "3,2,1, play!" together.</p>
-      <button onclick="document.getElementById('placeholder').style.display='none'" style="margin-top: 12px;">Close</button>
-    </div>
-  `;
-  placeholder.style.display = 'flex';
-  
-  currentAmazonUrl = url;
-  currentPlatform = 'amazon';
-  
-  // Show manual sync button for viewers
-  if (!isHost) {
-    document.getElementById('manualSyncBtn').style.display = 'flex';
-  }
 }
 
 // Socket event handlers
@@ -954,123 +713,242 @@ function initSocket(name, callback) {
     isHost = true;
     updateUI();
     showToast('👑 You are now the host!');
-    if (player && playerReady) {
-      // Enable host controls
-      document.getElementById('playPauseBtn').disabled = false;
-      document.getElementById('seekBar').disabled = false;
-    }
   });
   
   socket.on('host_changed', () => {
     isHost = false;
     updateUI();
     showToast('Host left - you are now a viewer');
-    if (player && playerReady) {
-      document.getElementById('playPauseBtn').disabled = true;
-      document.getElementById('seekBar').disabled = true;
-    }
-    if (currentPlatform === 'amazon') {
-      document.getElementById('manualSyncBtn').style.display = 'flex';
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
     }
   });
   
-  socket.on('video_loaded', ({ videoId, videoPlatform, videoUrl, currentTime, isPlaying }) => {
-    if (videoPlatform === 'youtube' && videoId) {
-      if (currentVideoId !== videoId) {
-        currentVideoId = videoId;
-        currentPlatform = 'youtube';
-        createYouTubePlayer(videoId, currentTime, isPlaying);
-      }
-    } else if (videoPlatform === 'amazon' && videoUrl) {
-      showAmazonMiniTV(videoUrl);
+  socket.on('screen_share_started', () => {
+    showToast('📺 Host started screen sharing!', 3000);
+    document.getElementById('waitingStatus').innerHTML = '📺 Host is sharing their screen...';
+    document.getElementById('placeholder').style.display = 'none';
+    setupViewerConnection();
+  });
+  
+  socket.on('screen_share_stopped', () => {
+    showToast('🛑 Host stopped screen sharing', 3000);
+    document.getElementById('remote-video').srcObject = null;
+    document.getElementById('placeholder').style.display = 'flex';
+    document.getElementById('waitingStatus').innerHTML = '⏳ Waiting for host to start sharing...';
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
     }
   });
   
-  socket.on('video_play', ({ currentTime }) => {
-    if (!isHost && player && playerReady && currentPlatform === 'youtube') {
-      const playerTime = player.getCurrentTime();
-      const diff = Math.abs(playerTime - currentTime);
-      
-      if (diff > 1.0) {
-        player.seekTo(currentTime, true);
-      }
-      
-      setTimeout(() => {
-        if (player && playerReady && player.getPlayerState() !== 1) {
-          player.playVideo();
-        }
-      }, 100);
+  // WebRTC Signaling
+  socket.on('viewer_ready', async ({ viewerId }) => {
+    if (isHost && isSharing) {
+      await createOffer(viewerId);
     }
   });
   
-  socket.on('video_pause', ({ currentTime }) => {
-    if (!isHost && player && playerReady && currentPlatform === 'youtube') {
-      const playerTime = player.getCurrentTime();
-      const diff = Math.abs(playerTime - currentTime);
-      
-      if (diff > 1.0) {
-        player.seekTo(currentTime, true);
-      }
-      
-      setTimeout(() => {
-        if (player && playerReady && player.getPlayerState() === 1) {
-          player.pauseVideo();
-        }
-      }, 100);
-    }
+  socket.on('offer', async ({ offer, hostId }) => {
+    await handleOffer(offer, hostId);
   });
   
-  socket.on('video_seek', ({ currentTime }) => {
-    if (!isHost && player && playerReady && currentPlatform === 'youtube') {
-      player.seekTo(currentTime, true);
-    }
+  socket.on('answer', async ({ answer, viewerId }) => {
+    await handleAnswer(answer, viewerId);
   });
   
-  socket.on('force_sync_response', ({ currentTime, isPlaying }) => {
-    if (!isHost && player && playerReady && currentPlatform === 'youtube') {
-      const playerTime = player.getCurrentTime();
-      const diff = Math.abs(playerTime - currentTime);
-      
-      if (diff > 0.5) {
-        player.seekTo(currentTime, true);
-        showToast(`🔧 Syncing...`, 500);
-      }
-      
-      if (isPlaying && player.getPlayerState() !== 1) {
-        player.playVideo();
-      } else if (!isPlaying && player.getPlayerState() === 1) {
-        player.pauseVideo();
-      }
+  socket.on('ice_candidate', ({ candidate, senderId }) => {
+    if (peerConnection) {
+      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     }
   });
   
   socket.on('chat_message', (msg) => addChatMessage(msg));
 }
 
+// WebRTC Functions
+async function startScreenShare() {
+  if (!isHost) return;
+  
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        cursor: "always",
+        displaySurface: "monitor"
+      },
+      audio: true
+    });
+    
+    const localVideo = document.getElementById('local-video');
+    localVideo.srcObject = stream;
+    localVideo.style.display = 'block';
+    
+    isSharing = true;
+    document.getElementById('startShareBtn').style.display = 'none';
+    document.getElementById('stopShareBtn').style.display = 'inline-block';
+    document.getElementById('sharingStatus').innerHTML = '🔴 Sharing screen...';
+    document.getElementById('syncDot').classList.add('streaming');
+    document.getElementById('syncText').textContent = 'Streaming';
+    document.getElementById('placeholder').style.display = 'none';
+    
+    socket.emit('start_screen_share');
+    
+    // Handle stream end
+    stream.getVideoTracks()[0].onended = () => {
+      stopScreenShare();
+    };
+    
+    // Create peer connections for existing viewers
+    for (const viewerId of viewers.keys()) {
+      await createOffer(viewerId);
+    }
+    
+  } catch (err) {
+    console.error('Error sharing screen:', err);
+    showToast('❌ Failed to share screen: ' + err.message);
+  }
+}
+
+function stopScreenShare() {
+  if (!isHost || !isSharing) return;
+  
+  const localVideo = document.getElementById('local-video');
+  if (localVideo.srcObject) {
+    localVideo.srcObject.getTracks().forEach(track => track.stop());
+    localVideo.srcObject = null;
+  }
+  
+  isSharing = false;
+  document.getElementById('startShareBtn').style.display = 'inline-block';
+  document.getElementById('stopShareBtn').style.display = 'none';
+  document.getElementById('sharingStatus').innerHTML = '';
+  document.getElementById('syncDot').classList.remove('streaming');
+  document.getElementById('syncText').textContent = 'Ready';
+  document.getElementById('placeholder').style.display = 'flex';
+  localVideo.style.display = 'none';
+  
+  socket.emit('stop_screen_share');
+  
+  // Close all peer connections
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+}
+
+async function createOffer(viewerId) {
+  if (!isHost || !isSharing) return;
+  
+  const pc = new RTCPeerConnection(configuration);
+  const localVideo = document.getElementById('local-video');
+  const stream = localVideo.srcObject;
+  
+  if (!stream) return;
+  
+  stream.getTracks().forEach(track => {
+    pc.addTrack(track, stream);
+  });
+  
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('ice_candidate', {
+        candidate: event.candidate,
+        targetId: viewerId
+      });
+    }
+  };
+  
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  
+  socket.emit('offer', {
+    offer: pc.localDescription,
+    viewerId: viewerId
+  });
+  
+  viewers.set(viewerId, pc);
+}
+
+async function handleOffer(offer, hostId) {
+  if (isHost) return;
+  
+  if (peerConnection) {
+    peerConnection.close();
+  }
+  
+  peerConnection = new RTCPeerConnection(configuration);
+  
+  peerConnection.ontrack = (event) => {
+    const remoteVideo = document.getElementById('remote-video');
+    remoteVideo.srcObject = event.streams[0];
+    document.getElementById('qualityBadge').style.display = 'block';
+    updateQualityIndicator();
+  };
+  
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('ice_candidate', {
+        candidate: event.candidate,
+        targetId: hostId
+      });
+    }
+  };
+  
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  
+  socket.emit('answer', {
+    answer: peerConnection.localDescription,
+    hostId: hostId
+  });
+}
+
+async function handleAnswer(answer, viewerId) {
+  if (!isHost) return;
+  
+  const pc = viewers.get(viewerId);
+  if (pc) {
+    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+  }
+}
+
+async function setupViewerConnection() {
+  if (isHost) return;
+  
+  // Signal that viewer is ready
+  socket.emit('viewer_ready', { viewerId: myId });
+}
+
+function updateQualityIndicator() {
+  if (peerConnection) {
+    const stats = peerConnection.getStats();
+    stats.then(reports => {
+      reports.forEach(report => {
+        if (report.type === 'inbound-rtp' && report.kind === 'video') {
+          const bitrate = (report.bytesReceived * 8 / 1024 / 1024).toFixed(1);
+          document.getElementById('qualityBadge').innerHTML = `📊 ${bitrate} Mbps`;
+        }
+      });
+    });
+  }
+  setTimeout(updateQualityIndicator, 2000);
+}
+
 function updateUI() {
   const hostControls = document.getElementById('hostControls');
   const guestControls = document.getElementById('guestControls');
   const hostBadge = document.getElementById('hostBadge');
-  const playPauseBtn = document.getElementById('playPauseBtn');
-  const seekBar = document.getElementById('seekBar');
-  const manualSyncBtn = document.getElementById('manualSyncBtn');
   
   if (isHost) {
     hostControls.style.display = 'flex';
     guestControls.style.display = 'none';
     hostBadge.style.display = 'inline-block';
-    playPauseBtn.disabled = false;
-    seekBar.disabled = false;
-    manualSyncBtn.style.display = 'none';
   } else {
     hostControls.style.display = 'none';
     guestControls.style.display = 'flex';
     hostBadge.style.display = 'none';
-    playPauseBtn.disabled = true;
-    seekBar.disabled = true;
-    if (currentPlatform === 'amazon') {
-      manualSyncBtn.style.display = 'flex';
-    }
   }
 }
 
@@ -1198,142 +1076,7 @@ function enterApp(info) {
   document.getElementById('roomCode').textContent = roomId;
   updateRoomUI(info);
   updateUI();
-  
-  if (info.videoId && info.videoPlatform === 'youtube') {
-    currentVideoId = info.videoId;
-    currentPlatform = 'youtube';
-    createYouTubePlayer(info.videoId, info.currentTime, info.isPlaying);
-  } else if (info.videoUrl && info.videoPlatform === 'amazon') {
-    showAmazonMiniTV(info.videoUrl);
-  }
-  
-  // Force sync interval for viewers - every 2 seconds
-  if (!isHost) {
-    forceSyncInterval = setInterval(() => {
-      if (player && playerReady && currentPlatform === 'youtube' && !isSeeking) {
-        socket.emit('force_sync', { 
-          currentTime: player.getCurrentTime(), 
-          isPlaying: player.getPlayerState() === 1 
-        });
-      }
-    }, 2000);
-  }
 }
-
-function loadVideo() {
-  if (!isHost) return;
-  
-  const url = document.getElementById('videoUrl').value.trim();
-  if (!url) {
-    showToast('Please enter a URL');
-    return;
-  }
-  
-  const detected = detectPlatform(url);
-  if (!detected) {
-    showToast('❌ Unsupported platform. Try YouTube or Amazon Mini TV');
-    return;
-  }
-  
-  showToast(`📡 Loading ${detected.platform.toUpperCase()}...`);
-  
-  if (detected.platform === 'youtube') {
-    currentVideoId = detected.videoId;
-    currentPlatform = 'youtube';
-    createYouTubePlayer(detected.videoId, 0, false);
-    
-    socket.emit('load_video', { 
-      videoId: detected.videoId, 
-      platform: 'youtube',
-      videoUrl: null
-    }, (res) => {
-      if (res.success) {
-        showToast('✅ YouTube video loaded for everyone!');
-      }
-    });
-  } else if (detected.platform === 'amazon') {
-    currentPlatform = 'amazon';
-    currentAmazonUrl = detected.url;
-    showAmazonMiniTV(detected.url);
-    
-    socket.emit('load_video', { 
-      videoId: null, 
-      platform: 'amazon',
-      videoUrl: detected.url
-    }, (res) => {
-      if (res.success) {
-        showToast('✅ Amazon Mini TV link shared!');
-      }
-    });
-  }
-}
-
-function togglePlayPause() {
-  if (!isHost || !player || !playerReady || currentPlatform !== 'youtube') return;
-  
-  const state = player.getPlayerState();
-  if (state === 1) {
-    player.pauseVideo();
-  } else if (state === 2) {
-    player.playVideo();
-  }
-}
-
-function onSeekInput() {
-  if (!isHost || !player || !playerReady || currentPlatform !== 'youtube') return;
-  isSeeking = true;
-}
-
-function onSeekChange(e) {
-  if (!isHost || !player || !playerReady || currentPlatform !== 'youtube') return;
-  const percent = parseFloat(e.target.value);
-  const duration = player.getDuration();
-  const time = (percent / 100) * duration;
-  player.seekTo(time, true);
-  socket.emit('seek_video', { currentTime: time });
-  setTimeout(() => { isSeeking = false; }, 100);
-}
-
-function manualSync() {
-  if (currentPlatform === 'amazon') {
-    showToast('For Amazon Mini TV: Use the link above and coordinate with chat!', 3000);
-    socket.emit('chat_send', { text: '🎬 Everyone click play at the same time!' });
-  } else if (currentPlatform === 'youtube' && !isHost) {
-    // Request force sync
-    if (player && playerReady) {
-      socket.emit('force_sync', { 
-        currentTime: player.getCurrentTime(), 
-        isPlaying: player.getPlayerState() === 1 
-      });
-      showToast('🔄 Requesting sync...', 1000);
-    }
-  }
-}
-
-function updatePlayerUI() {
-  if (!player || !playerReady || currentPlatform !== 'youtube') return;
-  
-  try {
-    const currentTime = player.getCurrentTime();
-    const duration = player.getDuration();
-    
-    if (duration && !isSeeking) {
-      const percent = (currentTime / duration) * 100;
-      document.getElementById('seekBar').value = percent;
-      document.getElementById('timeDisplay').textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-    }
-    
-    const playBtn = document.getElementById('playPauseBtn');
-    const state = player.getPlayerState();
-    if (state === 1) playBtn.textContent = '⏸';
-    else if (state === 2) playBtn.textContent = '▶';
-  } catch(e) {}
-}
-
-// Update UI every 300ms
-setInterval(() => {
-  updatePlayerUI();
-}, 300);
 
 // Event listeners
 document.getElementById('tabCreate').addEventListener('click', () => {
@@ -1354,7 +1097,6 @@ document.getElementById('tabJoin').addEventListener('click', () => {
 
 document.getElementById('createRoomBtn').addEventListener('click', createRoom);
 document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
-
 document.getElementById('copyRoomCode').addEventListener('click', () => {
   if (roomId) {
     navigator.clipboard.writeText(roomId);
@@ -1362,22 +1104,8 @@ document.getElementById('copyRoomCode').addEventListener('click', () => {
   }
 });
 
-document.getElementById('loadVideoBtn').addEventListener('click', loadVideo);
-document.getElementById('videoUrl').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') loadVideo();
-});
-
-document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
-document.getElementById('seekBar').addEventListener('input', onSeekInput);
-document.getElementById('seekBar').addEventListener('change', onSeekChange);
-document.getElementById('manualSyncBtn').addEventListener('click', manualSync);
-
-document.getElementById('volumeSlider').addEventListener('input', (e) => {
-  if (player && playerReady) {
-    player.setVolume(parseInt(e.target.value));
-  }
-  localStorage.setItem('volume', e.target.value);
-});
+document.getElementById('startShareBtn').addEventListener('click', startScreenShare);
+document.getElementById('stopShareBtn').addEventListener('click', stopScreenShare);
 
 // Chat
 document.getElementById('sendBtn').addEventListener('click', () => {
@@ -1394,11 +1122,12 @@ document.getElementById('chatMessage').addEventListener('keypress', (e) => {
   }
 });
 
-// Restore volume
-const savedVolume = localStorage.getItem('volume');
-if (savedVolume) {
-  document.getElementById('volumeSlider').value = savedVolume;
-}
+// Quality indicator update
+setInterval(() => {
+  if (!isHost && peerConnection) {
+    updateQualityIndicator();
+  }
+}, 3000);
 </script>
 </body>
 </html>
