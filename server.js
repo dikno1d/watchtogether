@@ -95,10 +95,9 @@ io.on("connection", (socket) => {
 
     console.log(`👤 ${name} joined ${roomId}`);
     
-    // Send current state to the new joiner
     cb({ ok: true, roomId, info: roomInfo(roomId) });
     
-    // Send current content state to the new joiner
+    // Send current state to new joiner
     if (room.mode === 'youtube' && room.videoId) {
       socket.emit("youtube_loaded", {
         videoId: room.videoId,
@@ -107,7 +106,7 @@ io.on("connection", (socket) => {
       });
     } else if (room.mode === 'screenshare' && room.isSharing) {
       socket.emit("screen_share_started");
-      // Notify host to send offer to new viewer
+      // Notify host to send stream to new viewer
       if (room.host) {
         io.to(room.host).emit("new_viewer_joined", { viewerId: socket.id });
       }
@@ -175,6 +174,16 @@ io.on("connection", (socket) => {
     io.to(socket.data.roomId).emit("youtube_seek", { currentTime });
   });
 
+  socket.on("youtube_sync_request", () => {
+    const room = getRoom(socket.data.roomId);
+    if (!room || room.host !== socket.id) return;
+    
+    socket.emit("youtube_sync_response", {
+      currentTime: room.currentTime,
+      isPlaying: room.isPlaying
+    });
+  });
+
   // Screen Share Events
   socket.on("start_screen_share", () => {
     const room = getRoom(socket.data.roomId);
@@ -212,7 +221,6 @@ io.on("connection", (socket) => {
     if (!room) return;
     
     if (room.isSharing && room.host) {
-      // Send current stream to the new viewer
       io.to(room.host).emit("offer_request", { viewerId: socket.id });
     }
   });
@@ -222,22 +230,17 @@ io.on("connection", (socket) => {
     if (!room || room.host !== socket.id) return;
     
     if (room.isSharing) {
-      // Trigger offer creation for the new viewer
       io.to(room.host).emit("offer_request", { viewerId });
     }
-  });
-
-  socket.on("offer_request", ({ viewerId }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    // Create offer for the new viewer
-    socket.emit("create_offer_for_viewer", { viewerId });
   });
 
   socket.on("offer", ({ offer, viewerId }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
+    
+    // Store peer connection reference
+    if (!room.peerConnections) room.peerConnections = new Map();
+    room.peerConnections.set(viewerId, { offer });
     
     io.to(viewerId).emit("offer", { offer, hostId: socket.id });
   });
@@ -279,6 +282,11 @@ io.on("connection", (socket) => {
     const member = room.members.get(socket.id);
     const wasHost = room.host === socket.id;
     room.members.delete(socket.id);
+    
+    // Remove peer connection if exists
+    if (room.peerConnections && room.peerConnections.has(socket.id)) {
+      room.peerConnections.delete(socket.id);
+    }
 
     if (room.members.size === 0) {
       // Clean up peer connections
@@ -327,5 +335,4 @@ server.listen(PORT, () => {
   console.log(`  • YouTube Sync - Perfect synchronization`);
   console.log(`  • Screen Share - Watch ANY content together`);
   console.log(`  • Auto-sync for new joiners`);
-  console.log(`  • Low latency streaming`);
 });
