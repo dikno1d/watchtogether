@@ -18,7 +18,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Endpoint to get TURN credentials
+// Endpoint to get TURN credentials for cross-region connectivity
 app.get("/api/turn-credentials", async (req, res) => {
   try {
     const response = await fetch("https://watchfuno.metered.live/api/v1/turn/credentials?apiKey=75db913ed299374807cf58b316566026cf87");
@@ -26,7 +26,6 @@ app.get("/api/turn-credentials", async (req, res) => {
     res.json(iceServers);
   } catch (error) {
     console.error("Error fetching TURN credentials:", error);
-    // Fallback to STUN only
     res.json([{ urls: "stun:stun.l.google.com:19302" }]);
   }
 });
@@ -119,7 +118,6 @@ io.on("connection", (socket) => {
       });
     } else if (room.mode === 'screenshare' && room.isSharing) {
       socket.emit("screen_share_started");
-      // Notify host to send offer to new viewer
       if (room.host) {
         io.to(room.host).emit("new_viewer_joined", { viewerId: socket.id });
       }
@@ -133,7 +131,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // YouTube Sync Events with improved sync
+  // YouTube Sync Events
   socket.on("load_youtube", ({ videoId }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
@@ -187,13 +185,6 @@ io.on("connection", (socket) => {
     io.to(socket.data.roomId).emit("youtube_seek", { currentTime });
   });
 
-  socket.on("youtube_sync_request", ({ currentTime, isPlaying }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    
-    socket.to(room.host).emit("youtube_sync_response", { currentTime, isPlaying });
-  });
-
   // Screen Share Events
   socket.on("start_screen_share", () => {
     const room = getRoom(socket.data.roomId);
@@ -202,7 +193,7 @@ io.on("connection", (socket) => {
     room.mode = "screenshare";
     room.isSharing = true;
     room.videoId = null;
-    room.currentTime = 0;
+    room.lastUpdate = Date.now();
     
     io.to(socket.data.roomId).emit("screen_share_started");
     console.log(`📺 Screen sharing started in ${socket.data.roomId}`);
@@ -215,7 +206,6 @@ io.on("connection", (socket) => {
     room.isSharing = false;
     room.mode = null;
     
-    // Close all peer connections
     for (const [viewerId, pc] of room.peerConnections) {
       try { pc.close(); } catch(e) {}
     }
@@ -336,10 +326,5 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n🎬 Ultimate Watch Party Server running!`);
-  console.log(`📍 http://localhost:${PORT}`);
-  console.log(`\n✨ Features:`);
-  console.log(`  • TURN Server enabled for cross-region connectivity`);
-  console.log(`  • YouTube Sync - Perfect synchronization`);
-  console.log(`  • Screen Share - Watch ANY content together`);
-  console.log(`  • Auto-sync for new joiners`);
+  console.log(`📍 Port: ${PORT}`);
 });
