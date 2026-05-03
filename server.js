@@ -18,6 +18,19 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+// Endpoint to get TURN credentials
+app.get("/api/turn-credentials", async (req, res) => {
+  try {
+    const response = await fetch("https://watchfuno.metered.live/api/v1/turn/credentials?apiKey=75db913ed299374807cf58b316566026cf87");
+    const iceServers = await response.json();
+    res.json(iceServers);
+  } catch (error) {
+    console.error("Error fetching TURN credentials:", error);
+    // Fallback to STUN only
+    res.json([{ urls: "stun:stun.l.google.com:19302" }]);
+  }
+});
+
 const rooms = {};
 const COLORS = [
   "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
@@ -106,7 +119,7 @@ io.on("connection", (socket) => {
       });
     } else if (room.mode === 'screenshare' && room.isSharing) {
       socket.emit("screen_share_started");
-      // Notify host to send stream to new viewer
+      // Notify host to send offer to new viewer
       if (room.host) {
         io.to(room.host).emit("new_viewer_joined", { viewerId: socket.id });
       }
@@ -120,7 +133,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  // YouTube Sync Events
+  // YouTube Sync Events with improved sync
   socket.on("load_youtube", ({ videoId }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
@@ -174,14 +187,11 @@ io.on("connection", (socket) => {
     io.to(socket.data.roomId).emit("youtube_seek", { currentTime });
   });
 
-  socket.on("youtube_sync_request", () => {
+  socket.on("youtube_sync_request", ({ currentTime, isPlaying }) => {
     const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
+    if (!room) return;
     
-    socket.emit("youtube_sync_response", {
-      currentTime: room.currentTime,
-      isPlaying: room.isPlaying
-    });
+    socket.to(room.host).emit("youtube_sync_response", { currentTime, isPlaying });
   });
 
   // Screen Share Events
@@ -234,13 +244,16 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("offer", ({ offer, viewerId }) => {
+  socket.on("offer_request", ({ viewerId }) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    // Store peer connection reference
-    if (!room.peerConnections) room.peerConnections = new Map();
-    room.peerConnections.set(viewerId, { offer });
+    socket.emit("create_offer_for_viewer", { viewerId });
+  });
+
+  socket.on("offer", ({ offer, viewerId }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room || room.host !== socket.id) return;
     
     io.to(viewerId).emit("offer", { offer, hostId: socket.id });
   });
@@ -282,14 +295,8 @@ io.on("connection", (socket) => {
     const member = room.members.get(socket.id);
     const wasHost = room.host === socket.id;
     room.members.delete(socket.id);
-    
-    // Remove peer connection if exists
-    if (room.peerConnections && room.peerConnections.has(socket.id)) {
-      room.peerConnections.delete(socket.id);
-    }
 
     if (room.members.size === 0) {
-      // Clean up peer connections
       for (const [viewerId, pc] of room.peerConnections) {
         try { pc.close(); } catch(e) {}
       }
@@ -299,7 +306,6 @@ io.on("connection", (socket) => {
     }
 
     if (wasHost) {
-      // Stop screen sharing if host disconnects
       room.isSharing = false;
       room.mode = null;
       
@@ -332,6 +338,7 @@ server.listen(PORT, () => {
   console.log(`\n🎬 Ultimate Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
   console.log(`\n✨ Features:`);
+  console.log(`  • TURN Server enabled for cross-region connectivity`);
   console.log(`  • YouTube Sync - Perfect synchronization`);
   console.log(`  • Screen Share - Watch ANY content together`);
   console.log(`  • Auto-sync for new joiners`);
