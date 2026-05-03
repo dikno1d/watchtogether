@@ -1,13 +1,13 @@
 {
-  "name": "watch-party-sync",
-  "version": "5.0.0",
-  "description": "Perfectly synced YouTube watch party",
+  "name": "watch-party",
+  "version": "1.0.0",
+  "description": "Watch Party with YouTube sync and screen sharing",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.5.4"
   }
 }
