@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
 <title>Ultimate Watch Party 🎬</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <script src="https://www.youtube.com/iframe_api"></script>
@@ -30,6 +30,8 @@
     color: var(--text);
     overflow: hidden;
     height: 100vh;
+    position: fixed;
+    width: 100%;
   }
   
   #lobby {
@@ -40,6 +42,7 @@
     align-items: center;
     justify-content: center;
     z-index: 100;
+    padding: 20px;
   }
   
   .card {
@@ -167,14 +170,22 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
-    flex-wrap: wrap;
+    padding: 0 16px;
+    flex-shrink: 0;
     gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
   
   .room-info {
     background: rgba(255,255,255,0.05);
-    padding: 6px 12px;
+    padding: 5px 12px;
     border-radius: 20px;
     font-size: 12px;
     display: flex;
@@ -187,12 +198,12 @@
     border: none;
     color: var(--muted);
     cursor: pointer;
-    font-size: 14px;
+    padding: 2px;
   }
   
   .host-badge {
     background: var(--accent);
-    padding: 4px 10px;
+    padding: 3px 10px;
     border-radius: 20px;
     font-size: 10px;
     font-weight: 600;
@@ -209,6 +220,7 @@
     padding: 12px 16px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
   }
   
   .mode-btn {
@@ -219,6 +231,7 @@
     color: var(--text);
     cursor: pointer;
     transition: 0.2s;
+    font-size: 14px;
   }
   
   .mode-btn.active {
@@ -258,6 +271,7 @@
     color: white;
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
   }
   
   .share-controls {
@@ -284,22 +298,48 @@
     background: var(--danger);
   }
   
+  .guest-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  .video-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    min-width: 0;
+  }
+  
   .player-container {
     flex: 1;
     position: relative;
     background: #000;
-    min-height: 300px;
+    min-height: 200px;
   }
   
   .player-wrapper {
     width: 100%;
     height: 100%;
+    position: relative;
   }
   
   #youtube-player {
     width: 100%;
     height: 100%;
     display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
   
   #remote-video {
@@ -308,13 +348,9 @@
     object-fit: contain;
     background: #000;
     display: none;
-  }
-  
-  #local-video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
   
   .placeholder {
@@ -329,6 +365,8 @@
     padding: 20px;
     border-radius: 12px;
     pointer-events: none;
+    width: 80%;
+    max-width: 400px;
   }
   
   .video-controls {
@@ -339,6 +377,7 @@
     background: var(--surface);
     border-top: 1px solid var(--border);
     flex-wrap: wrap;
+    flex-shrink: 0;
   }
   
   .control-btn {
@@ -354,6 +393,7 @@
     justify-content: center;
     font-size: 16px;
     transition: 0.2s;
+    flex-shrink: 0;
   }
   
   .control-btn:hover:not(:disabled) {
@@ -372,6 +412,7 @@
     border-radius: 3px;
     background: var(--sur2);
     -webkit-appearance: none;
+    min-width: 80px;
   }
   
   .seek-bar::-webkit-slider-thumb {
@@ -439,6 +480,7 @@
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
   }
   
   .members-section {
@@ -467,8 +509,12 @@
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    padding: 4px;
+    padding: 5px 8px;
     border-radius: 8px;
+  }
+  
+  .member-item:hover {
+    background: rgba(255,255,255,0.05);
   }
   
   .member-avatar {
@@ -480,6 +526,14 @@
     justify-content: center;
     font-weight: 600;
     font-size: 12px;
+    flex-shrink: 0;
+  }
+  
+  .member-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   .host-tag {
@@ -487,7 +541,7 @@
     background: var(--accent);
     padding: 2px 6px;
     border-radius: 10px;
-    margin-left: auto;
+    flex-shrink: 0;
   }
   
   .chat-section {
@@ -503,7 +557,7 @@
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
   
   .message {
@@ -562,6 +616,7 @@
     gap: 8px;
     padding: 12px;
     border-top: 1px solid var(--border);
+    flex-shrink: 0;
   }
   
   .chat-input input {
@@ -572,22 +627,18 @@
     border-radius: 20px;
     color: var(--text);
     outline: none;
+    font-size: 13px;
   }
   
   .chat-input button {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: var(--accent);
     border: none;
     color: white;
     cursor: pointer;
-  }
-  
-  .guest-message {
-    text-align: center;
-    padding: 20px;
-    color: var(--muted);
+    flex-shrink: 0;
   }
   
   #toast {
@@ -597,13 +648,14 @@
     transform: translateX(-50%);
     background: var(--sur2);
     padding: 10px 20px;
-    border-radius: 20px;
+    border-radius: 24px;
     font-size: 13px;
     z-index: 1000;
     opacity: 0;
     transition: 0.2s;
     pointer-events: none;
     text-align: center;
+    white-space: nowrap;
     max-width: 90vw;
   }
   
@@ -611,18 +663,136 @@
     opacity: 1;
   }
   
-  @media (max-width: 700px) {
-    .sidebar { width: 240px; }
-    .message-bubble { max-width: 160px; }
+  /* Mobile Responsive */
+  @media (max-width: 768px) {
+    .sidebar {
+      position: fixed;
+      right: -100%;
+      top: 56px;
+      bottom: 0;
+      width: 85%;
+      max-width: 300px;
+      z-index: 20;
+      transition: right 0.3s ease;
+    }
+    
+    .sidebar.open {
+      right: 0;
+    }
+    
+    .chat-toggle {
+      display: flex;
+      position: fixed;
+      bottom: 80px;
+      right: 16px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 15;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    .video-controls {
+      gap: 8px;
+      padding: 10px 12px;
+    }
+    
+    .control-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 14px;
+    }
+    
+    .time {
+      min-width: 70px;
+      font-size: 11px;
+    }
+    
+    .volume-slider {
+      width: 60px;
+    }
+    
+    .youtube-controls {
+      flex-direction: column;
+    }
+    
+    .youtube-controls input {
+      width: 100%;
+    }
+    
+    .youtube-controls button {
+      width: 100%;
+    }
+    
+    .share-controls {
+      flex-direction: column;
+    }
+    
+    .share-controls button {
+      width: 100%;
+    }
+    
+    .mode-selector {
+      flex-direction: column;
+    }
+    
+    .mode-btn {
+      width: 100%;
+    }
+    
+    .topbar {
+      flex-direction: column;
+      align-items: flex-start;
+      height: auto;
+      padding: 12px;
+    }
+    
+    .member-count {
+      align-self: flex-end;
+    }
+    
+    .message-bubble {
+      max-width: 180px;
+    }
   }
   
-  @media (max-width: 550px) {
-    .main { flex-direction: column; }
-    .sidebar { width: 100%; max-height: 280px; }
-    .youtube-controls { flex-direction: column; }
-    .share-controls { flex-direction: column; }
-    .video-controls { gap: 8px; }
-    .topbar { flex-direction: column; align-items: flex-start; height: auto; padding: 12px; }
+  @media (min-width: 769px) {
+    .chat-toggle {
+      display: none;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .message-bubble {
+      max-width: 160px;
+      font-size: 12px;
+    }
+  }
+  
+  /* Landscape Mode */
+  @media (max-width: 900px) and (orientation: landscape) {
+    .sidebar {
+      width: 240px;
+    }
+    
+    .members-section {
+      max-height: 120px;
+    }
+    
+    .chat-toggle {
+      bottom: 70px;
+    }
+    
+    .video-controls {
+      padding: 8px 12px;
+    }
   }
 </style>
 </head>
@@ -660,7 +830,7 @@
 
 <div id="app">
   <div class="topbar">
-    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <div class="topbar-left">
       <span style="font-weight: 800;">🎬 Watch Party</span>
       <div class="room-info">
         <span>Room: <strong id="roomCode">------</strong></span>
@@ -706,7 +876,6 @@
         <div class="player-wrapper">
           <div id="youtube-player"></div>
           <video id="remote-video" autoplay playsinline></video>
-          <video id="local-video" autoplay playsinline muted></video>
         </div>
         <div class="placeholder" id="placeholder">
           <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
@@ -728,7 +897,7 @@
       </div>
     </div>
     
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
       <div class="members-section">
         <div class="section-title">👥 Members</div>
         <div class="member-list" id="membersList"></div>
@@ -745,6 +914,7 @@
   </div>
 </div>
 
+<button class="chat-toggle" id="chatToggleBtn" style="display: none;">💬</button>
 <div id="toast"></div>
 
 <script>
@@ -759,15 +929,20 @@ let youtubeReady = false;
 let isSeeking = false;
 let peerConnection = null;
 let isSharing = false;
+let stream = null;
+let peerConnections = new Map();
 
-// WebRTC Configuration
+// WebRTC Configuration with optimized settings for low latency
 const configuration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' }
-  ]
+  ],
+  iceCandidatePoolSize: 10,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require'
 };
 
 function showToast(msg, duration = 3000) {
@@ -792,6 +967,13 @@ function extractVideoId(url) {
     if (match) return match[1];
   }
   return null;
+}
+
+function formatTime(seconds) {
+  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 function createYouTubePlayer(videoId, startTime = 0, autoPlay = false) {
@@ -829,6 +1011,7 @@ function createYouTubePlayer(videoId, startTime = 0, autoPlay = false) {
           youtubePlayer.pauseVideo();
         }
         showToast('✅ YouTube player ready!');
+        document.getElementById('videoControls').style.display = 'flex';
       },
       onStateChange: (event) => {
         if (!isHost) return;
@@ -848,7 +1031,6 @@ function createYouTubePlayer(videoId, startTime = 0, autoPlay = false) {
     }
   });
   
-  document.getElementById('videoControls').style.display = 'flex';
   document.getElementById('playPauseBtn').disabled = !isHost;
   document.getElementById('seekBar').disabled = !isHost;
 }
@@ -873,32 +1055,32 @@ function updateYouTubeUI() {
   } catch(e) {}
 }
 
-function formatTime(seconds) {
-  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-// Screen Share Functions
+// Screen Share Functions - Optimized for low latency
 async function startScreenShare() {
   if (!isHost) return;
   
   try {
-    const stream = await navigator.mediaDevices.getDisplayMedia({
+    stream = await navigator.mediaDevices.getDisplayMedia({
       video: {
         cursor: "always",
-        displaySurface: "monitor"
+        displaySurface: "monitor",
+        frameRate: { ideal: 30, max: 30 }
       },
-      audio: true  // Enable audio sharing
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
     });
     
-    const localVideo = document.getElementById('local-video');
-    localVideo.srcObject = stream;
-    localVideo.style.display = 'block';
-    document.getElementById('remote-video').style.display = 'none';
-    document.getElementById('youtube-player').style.display = 'none';
-    document.getElementById('placeholder').style.display = 'none';
+    const placeholder = document.getElementById('placeholder');
+    const youtubeDiv = document.getElementById('youtube-player');
+    const remoteVideo = document.getElementById('remote-video');
+    
+    placeholder.style.display = 'none';
+    youtubeDiv.style.display = 'none';
+    remoteVideo.style.display = 'none';
+    document.getElementById('videoControls').style.display = 'none';
     
     isSharing = true;
     document.getElementById('startShareBtn').style.display = 'none';
@@ -914,6 +1096,11 @@ async function startScreenShare() {
       stopScreenShare();
     };
     
+    // Create offers for existing viewers
+    for (const [viewerId, pc] of peerConnections) {
+      await createOfferForViewer(viewerId);
+    }
+    
     showToast('📺 Screen sharing started! Viewers can now see your screen.', 3000);
     
   } catch (err) {
@@ -925,11 +1112,16 @@ async function startScreenShare() {
 function stopScreenShare() {
   if (!isHost || !isSharing) return;
   
-  const localVideo = document.getElementById('local-video');
-  if (localVideo.srcObject) {
-    localVideo.srcObject.getTracks().forEach(track => track.stop());
-    localVideo.srcObject = null;
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
   }
+  
+  // Close all peer connections
+  for (const [viewerId, pc] of peerConnections) {
+    try { pc.close(); } catch(e) {}
+  }
+  peerConnections.clear();
   
   isSharing = false;
   document.getElementById('startShareBtn').style.display = 'inline-block';
@@ -937,28 +1129,15 @@ function stopScreenShare() {
   document.getElementById('shareStatus').innerHTML = '';
   document.getElementById('syncDot').classList.remove('streaming');
   document.getElementById('syncText').textContent = 'Ready';
-  localVideo.style.display = 'none';
   document.getElementById('placeholder').style.display = 'flex';
   
   socket.emit('stop_screen_share');
-  
-  if (peerConnection) {
-    peerConnection.close();
-    peerConnection = null;
-  }
 }
 
-async function createOffer(viewerId) {
-  if (!isSharing) return;
+async function createOfferForViewer(viewerId) {
+  if (!isHost || !isSharing || !stream) return;
   
   const pc = new RTCPeerConnection(configuration);
-  const localVideo = document.getElementById('local-video');
-  const stream = localVideo.srcObject;
-  
-  if (!stream) {
-    console.error('No stream available');
-    return;
-  }
   
   // Add all tracks from the stream
   stream.getTracks().forEach(track => {
@@ -974,20 +1153,18 @@ async function createOffer(viewerId) {
     }
   };
   
-  pc.onnegotiationneeded = async () => {
-    try {
-      await pc.setLocalDescription(await pc.createOffer());
-      socket.emit('offer', {
-        offer: pc.localDescription,
-        viewerId: viewerId
-      });
-    } catch (err) {
-      console.error('Negotiation error:', err);
+  pc.oniceconnectionstatechange = () => {
+    console.log(`ICE connection state for ${viewerId}: ${pc.iceConnectionState}`);
+    if (pc.iceConnectionState === 'connected') {
+      showToast(`📺 Viewer connected!`, 1000);
     }
   };
   
   try {
-    const offer = await pc.createOffer();
+    const offer = await pc.createOffer({
+      offerToReceiveAudio: false,
+      offerToReceiveVideo: false
+    });
     await pc.setLocalDescription(offer);
     
     socket.emit('offer', {
@@ -995,10 +1172,7 @@ async function createOffer(viewerId) {
       viewerId: viewerId
     });
     
-    // Store the peer connection
-    if (!window.peerConnections) window.peerConnections = new Map();
-    window.peerConnections.set(viewerId, pc);
-    
+    peerConnections.set(viewerId, pc);
   } catch (err) {
     console.error('Error creating offer:', err);
   }
@@ -1020,6 +1194,7 @@ async function handleOffer(offer, hostId) {
     document.getElementById('youtube-player').style.display = 'none';
     document.getElementById('placeholder').style.display = 'none';
     document.getElementById('videoControls').style.display = 'none';
+    document.getElementById('guestMessage').style.display = 'none';
     showToast('📺 Connected to host\'s screen!', 2000);
   };
   
@@ -1049,8 +1224,8 @@ async function handleOffer(offer, hostId) {
 async function handleAnswer(answer, viewerId) {
   if (!isHost) return;
   
-  const pc = window.peerConnections?.get(viewerId);
-  if (pc) {
+  const pc = peerConnections.get(viewerId);
+  if (pc && pc.remoteDescription === null) {
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
     } catch (err) {
@@ -1061,7 +1236,12 @@ async function handleAnswer(answer, viewerId) {
 
 // Socket Events
 function initSocket(name, callback) {
-  socket = io();
+  socket = io({
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+  });
   
   socket.on('connect', () => {
     myId = socket.id;
@@ -1100,24 +1280,31 @@ function initSocket(name, callback) {
   
   socket.on('youtube_loaded', ({ videoId, currentTime, isPlaying }) => {
     currentMode = 'youtube';
-    createYouTubePlayer(videoId, currentTime, isPlaying);
-    document.getElementById('videoControls').style.display = 'flex';
     document.getElementById('guestMessage').style.display = 'none';
+    createYouTubePlayer(videoId, currentTime, isPlaying);
   });
   
   socket.on('youtube_play', ({ currentTime }) => {
     if (!isHost && youtubePlayer && youtubeReady) {
       const diff = Math.abs(youtubePlayer.getCurrentTime() - currentTime);
-      if (diff > 1) youtubePlayer.seekTo(currentTime, true);
-      setTimeout(() => youtubePlayer.playVideo(), 100);
+      if (diff > 0.8) youtubePlayer.seekTo(currentTime, true);
+      setTimeout(() => {
+        if (youtubePlayer && youtubePlayer.getPlayerState() !== 1) {
+          youtubePlayer.playVideo();
+        }
+      }, 100);
     }
   });
   
   socket.on('youtube_pause', ({ currentTime }) => {
     if (!isHost && youtubePlayer && youtubeReady) {
       const diff = Math.abs(youtubePlayer.getCurrentTime() - currentTime);
-      if (diff > 1) youtubePlayer.seekTo(currentTime, true);
-      setTimeout(() => youtubePlayer.pauseVideo(), 100);
+      if (diff > 0.8) youtubePlayer.seekTo(currentTime, true);
+      setTimeout(() => {
+        if (youtubePlayer && youtubePlayer.getPlayerState() === 1) {
+          youtubePlayer.pauseVideo();
+        }
+      }, 100);
     }
   });
   
@@ -1132,6 +1319,7 @@ function initSocket(name, callback) {
     document.getElementById('guestMessage').style.display = 'none';
     document.getElementById('placeholder').style.display = 'flex';
     document.getElementById('placeholder').innerHTML = '<div style="text-align: center;"><p>📺 Connecting to host\'s screen...</p><p style="font-size: 12px;">Please wait while we establish connection</p></div>';
+    // Request to connect
     socket.emit('viewer_ready');
   });
   
@@ -1147,9 +1335,15 @@ function initSocket(name, callback) {
     }
   });
   
-  socket.on('viewer_ready', ({ viewerId }) => {
-    if (isHost && isSharing) {
-      createOffer(viewerId);
+  socket.on('offer_request', ({ viewerId }) => {
+    if (isHost && isSharing && stream) {
+      createOfferForViewer(viewerId);
+    }
+  });
+  
+  socket.on('new_viewer_joined', ({ viewerId }) => {
+    if (isHost && isSharing && stream) {
+      createOfferForViewer(viewerId);
     }
   });
   
@@ -1162,9 +1356,9 @@ function initSocket(name, callback) {
   });
   
   socket.on('ice_candidate', ({ candidate, senderId }) => {
-    const pc = isHost ? window.peerConnections?.get(senderId) : peerConnection;
+    const pc = isHost ? peerConnections.get(senderId) : peerConnection;
     if (pc) {
-      pc.addIceCandidate(new RTCIceCandidate(candidate));
+      pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error('ICE candidate error:', e));
     }
   });
   
@@ -1177,22 +1371,22 @@ function updateUI() {
   const shareControls = document.getElementById('shareControls');
   const hostBadge = document.getElementById('hostBadge');
   const guestMessage = document.getElementById('guestMessage');
-  const videoControls = document.getElementById('videoControls');
   
   if (isHost) {
     modeSelector.style.display = 'flex';
     hostBadge.style.display = 'inline-block';
     guestMessage.style.display = 'none';
-    document.getElementById('playPauseBtn').disabled = false;
-    document.getElementById('seekBar').disabled = false;
+    if (currentMode === 'youtube') {
+      document.getElementById('playPauseBtn').disabled = false;
+      document.getElementById('seekBar').disabled = false;
+    }
   } else {
     modeSelector.style.display = 'none';
     youtubeControls.style.display = 'none';
     shareControls.style.display = 'none';
     hostBadge.style.display = 'none';
-    guestMessage.style.display = 'block';
     if (currentMode !== 'screenshare') {
-      videoControls.style.display = 'none';
+      guestMessage.style.display = 'block';
     }
     document.getElementById('playPauseBtn').disabled = true;
     document.getElementById('seekBar').disabled = true;
@@ -1215,8 +1409,8 @@ function updateRoomUI(info) {
     avatar.textContent = m.name[0].toUpperCase();
     
     const nameSpan = document.createElement('span');
+    nameSpan.className = 'member-name';
     nameSpan.textContent = m.name;
-    nameSpan.style.flex = '1';
     
     div.appendChild(avatar);
     div.appendChild(nameSpan);
@@ -1323,6 +1517,16 @@ function enterApp(info) {
   document.getElementById('roomCode').textContent = roomId;
   updateRoomUI(info);
   updateUI();
+  
+  // Setup mobile chat toggle
+  const sidebar = document.getElementById('sidebar');
+  const chatToggle = document.getElementById('chatToggleBtn');
+  if (window.innerWidth <= 768) {
+    chatToggle.style.display = 'flex';
+    chatToggle.onclick = () => {
+      sidebar.classList.toggle('open');
+    };
+  }
 }
 
 function loadYoutubeVideo() {
@@ -1338,6 +1542,11 @@ function loadYoutubeVideo() {
   if (!videoId) {
     showToast('❌ Invalid YouTube URL');
     return;
+  }
+  
+  // Stop screen sharing if active
+  if (isSharing) {
+    stopScreenShare();
   }
   
   currentMode = 'youtube';
@@ -1404,6 +1613,7 @@ document.getElementById('tabCreate').addEventListener('click', () => {
   document.getElementById('joinForm').style.display = 'none';
   document.getElementById('tabCreate').classList.add('active');
   document.getElementById('tabJoin').classList.remove('active');
+  document.getElementById('lobbyError').textContent = '';
 });
 
 document.getElementById('tabJoin').addEventListener('click', () => {
@@ -1411,6 +1621,7 @@ document.getElementById('tabJoin').addEventListener('click', () => {
   document.getElementById('joinForm').style.display = 'block';
   document.getElementById('tabJoin').classList.add('active');
   document.getElementById('tabCreate').classList.remove('active');
+  document.getElementById('lobbyError').textContent = '';
 });
 
 document.getElementById('createRoomBtn').addEventListener('click', createRoom);
@@ -1423,6 +1634,10 @@ document.getElementById('copyRoomCode').addEventListener('click', () => {
 });
 
 document.getElementById('loadYoutubeBtn').addEventListener('click', loadYoutubeVideo);
+document.getElementById('youtubeUrl').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') loadYoutubeVideo();
+});
+
 document.getElementById('startShareBtn').addEventListener('click', startScreenShare);
 document.getElementById('stopShareBtn').addEventListener('click', stopScreenShare);
 document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
@@ -1449,6 +1664,19 @@ document.getElementById('sendBtn').addEventListener('click', () => {
 document.getElementById('chatMessage').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {
     document.getElementById('sendBtn').click();
+  }
+});
+
+// Window resize handler for mobile
+window.addEventListener('resize', () => {
+  const sidebar = document.getElementById('sidebar');
+  const chatToggle = document.getElementById('chatToggleBtn');
+  if (window.innerWidth <= 768) {
+    chatToggle.style.display = 'flex';
+    if (sidebar) sidebar.classList.remove('open');
+  } else {
+    chatToggle.style.display = 'none';
+    if (sidebar) sidebar.classList.remove('open');
   }
 });
 
