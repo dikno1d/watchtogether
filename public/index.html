@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Watch Party - No Buffer 🎬</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#0a0a0f"/>
+<title>Universal Watch Party 🎬</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<script src="https://www.youtube.com/iframe_api"></script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -21,6 +22,7 @@
     --border: rgba(255,255,255,0.07);
     --success: #10b981;
     --danger: #ef4444;
+    --header-height: 56px;
   }
   
   body {
@@ -29,8 +31,11 @@
     color: var(--text);
     overflow: hidden;
     height: 100vh;
+    position: fixed;
+    width: 100%;
   }
   
+  /* Lobby */
   #lobby {
     position: fixed;
     inset: 0;
@@ -39,6 +44,7 @@
     align-items: center;
     justify-content: center;
     z-index: 100;
+    padding: 20px;
   }
   
   .card {
@@ -47,7 +53,7 @@
     border-radius: 24px;
     padding: 40px;
     width: 420px;
-    max-width: 90vw;
+    max-width: 100%;
     animation: slideUp 0.4s ease;
   }
   
@@ -149,6 +155,7 @@
     text-align: center;
   }
   
+  /* App */
   #app {
     display: none;
     height: 100vh;
@@ -159,21 +166,34 @@
     display: flex;
   }
   
+  /* Top Bar */
   .topbar {
-    height: 56px;
+    height: var(--header-height);
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
+    padding: 0 16px;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     flex-wrap: wrap;
-    gap: 10px;
+  }
+  
+  .app-logo {
+    font-weight: 800;
+    font-size: 16px;
   }
   
   .room-info {
     background: rgba(255,255,255,0.05);
-    padding: 6px 12px;
+    padding: 5px 12px;
     border-radius: 20px;
     font-size: 12px;
     display: flex;
@@ -187,14 +207,36 @@
     color: var(--muted);
     cursor: pointer;
     font-size: 14px;
+    padding: 2px;
   }
   
   .host-badge {
     background: var(--accent);
-    padding: 4px 10px;
+    padding: 3px 10px;
     border-radius: 20px;
     font-size: 10px;
     font-weight: 600;
+  }
+  
+  .sync-status {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .sync-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
   }
   
   .member-count {
@@ -202,17 +244,21 @@
     color: var(--muted);
   }
   
+  /* Main Layout */
   .main {
     display: flex;
     flex: 1;
     overflow: hidden;
+    position: relative;
   }
   
+  /* Video Panel */
   .video-panel {
     flex: 1;
     display: flex;
     flex-direction: column;
     background: #000;
+    min-width: 0;
   }
   
   .url-bar {
@@ -226,45 +272,86 @@
   
   .url-bar input {
     flex: 1;
-    padding: 10px;
+    padding: 10px 14px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 12px;
     color: var(--text);
     font-size: 13px;
-    min-width: 200px;
+    min-width: 180px;
+  }
+  
+  .url-bar input:focus {
+    border-color: var(--accent);
+    outline: none;
   }
   
   .url-bar button {
     padding: 10px 20px;
     background: var(--accent);
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     color: white;
     font-weight: 600;
     cursor: pointer;
     transition: 0.2s;
+    white-space: nowrap;
   }
   
   .url-bar button:hover {
     background: var(--accent2);
   }
   
+  .url-bar button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .detected-platform {
+    padding: 8px 16px;
+    background: var(--sur2);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .platform-badge {
+    background: var(--accent);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    color: white;
+  }
+  
   .player-container {
     flex: 1;
     position: relative;
     background: #000;
-    min-height: 300px;
+    min-height: 200px;
   }
   
   .player-wrapper {
     width: 100%;
     height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
-  #youtube-player {
+  iframe {
     width: 100%;
     height: 100%;
+    border: none;
+  }
+  
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
   
   .placeholder {
@@ -277,9 +364,11 @@
     z-index: 10;
     background: #000;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 16px;
+    pointer-events: none;
   }
   
+  /* Controls */
   .controls {
     display: flex;
     align-items: center;
@@ -288,6 +377,7 @@
     background: var(--surface);
     border-top: 1px solid var(--border);
     flex-wrap: wrap;
+    flex-shrink: 0;
   }
   
   .control-btn {
@@ -303,6 +393,7 @@
     justify-content: center;
     font-size: 16px;
     transition: 0.2s;
+    flex-shrink: 0;
   }
   
   .control-btn:hover:not(:disabled) {
@@ -322,6 +413,7 @@
     border-radius: 3px;
     background: var(--sur2);
     -webkit-appearance: none;
+    min-width: 80px;
   }
   
   .seek-bar::-webkit-slider-thumb {
@@ -358,39 +450,35 @@
     cursor: pointer;
   }
   
-  .sync-status {
-    font-size: 11px;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  .fullscreen-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: 0.2s;
   }
   
-  .sync-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--success);
-    animation: pulse 2s infinite;
+  .fullscreen-btn:hover {
+    background: rgba(255,255,255,0.1);
   }
   
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-  
+  /* Sidebar - Chat */
   .sidebar {
     width: 280px;
     background: var(--surface);
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
   }
   
   .members-section {
     padding: 16px;
     border-bottom: 1px solid var(--border);
-    max-height: 200px;
+    max-height: 180px;
     overflow-y: auto;
   }
   
@@ -413,7 +501,7 @@
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    padding: 4px;
+    padding: 5px 8px;
     border-radius: 8px;
     transition: background 0.2s;
   }
@@ -431,6 +519,14 @@
     justify-content: center;
     font-weight: 600;
     font-size: 12px;
+    flex-shrink: 0;
+  }
+  
+  .member-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   .host-tag {
@@ -438,7 +534,7 @@
     background: var(--accent);
     padding: 2px 6px;
     border-radius: 10px;
-    margin-left: auto;
+    flex-shrink: 0;
   }
   
   .chat-section {
@@ -454,7 +550,7 @@
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
   
   .message {
@@ -513,6 +609,7 @@
     gap: 8px;
     padding: 12px;
     border-top: 1px solid var(--border);
+    flex-shrink: 0;
   }
   
   .chat-input input {
@@ -520,20 +617,26 @@
     padding: 10px;
     background: rgba(255,255,255,0.05);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 24px;
     color: var(--text);
     outline: none;
+    font-size: 13px;
+  }
+  
+  .chat-input input:focus {
+    border-color: var(--accent);
   }
   
   .chat-input button {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: var(--accent);
     border: none;
     color: white;
     cursor: pointer;
     transition: 0.2s;
+    flex-shrink: 0;
   }
   
   .chat-input button:hover {
@@ -547,7 +650,7 @@
     transform: translateX(-50%);
     background: var(--sur2);
     padding: 10px 20px;
-    border-radius: 20px;
+    border-radius: 24px;
     font-size: 13px;
     z-index: 1000;
     opacity: 0;
@@ -555,27 +658,178 @@
     pointer-events: none;
     text-align: center;
     max-width: 90vw;
+    white-space: nowrap;
   }
   
   #toast.show {
     opacity: 1;
   }
   
-  @media (max-width: 700px) {
-    .sidebar { width: 240px; }
-    .message-bubble { max-width: 160px; }
-    .time { min-width: 80px; font-size: 11px; }
-    .controls { gap: 8px; }
+  /* Mobile Styles */
+  @media (max-width: 768px) {
+    .sidebar {
+      position: fixed;
+      right: -100%;
+      top: var(--header-height);
+      bottom: 0;
+      width: 85%;
+      max-width: 300px;
+      z-index: 20;
+      transition: right 0.3s ease;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+    }
+    
+    .sidebar.open {
+      right: 0;
+    }
+    
+    .chat-toggle {
+      display: flex;
+      position: fixed;
+      bottom: 80px;
+      right: 16px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 15;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .controls {
+      gap: 8px;
+      padding: 10px 12px;
+    }
+    
+    .control-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 14px;
+    }
+    
+    .time {
+      min-width: 70px;
+      font-size: 11px;
+    }
+    
+    .volume-slider {
+      width: 60px;
+    }
+    
+    .url-bar {
+      flex-direction: column;
+    }
+    
+    .url-bar input {
+      width: 100%;
+    }
+    
+    .url-bar button {
+      width: 100%;
+    }
+    
+    .topbar-left {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .room-info {
+      font-size: 11px;
+      padding: 4px 10px;
+    }
+    
+    .member-count {
+      font-size: 11px;
+    }
+    
+    .message-bubble {
+      max-width: 180px;
+    }
   }
   
-  @media (max-width: 550px) {
-    .main { flex-direction: column; }
-    .sidebar { width: 100%; max-height: 280px; }
-    .url-bar { flex-direction: column; }
-    .url-bar input { width: 100%; }
-    .url-bar button { width: 100%; }
-    .topbar { flex-direction: column; align-items: flex-start; height: auto; padding: 12px; }
-    .member-count { align-self: flex-end; }
+  @media (min-width: 769px) {
+    .chat-toggle {
+      display: none;
+    }
+    
+    .sidebar {
+      position: relative;
+      right: auto !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .topbar {
+      padding: 0 12px;
+    }
+    
+    .app-logo {
+      font-size: 14px;
+    }
+    
+    .sync-status {
+      font-size: 10px;
+    }
+    
+    .control-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 12px;
+    }
+    
+    .time {
+      min-width: 60px;
+      font-size: 10px;
+    }
+    
+    .message-bubble {
+      max-width: 160px;
+      font-size: 12px;
+    }
+  }
+  
+  /* Landscape Mode */
+  @media (max-width: 900px) and (orientation: landscape) {
+    .sidebar {
+      width: 240px;
+    }
+    
+    .members-section {
+      max-height: 120px;
+    }
+    
+    .chat-toggle {
+      bottom: 70px;
+    }
+    
+    .controls {
+      padding: 8px 12px;
+    }
+  }
+  
+  /* Fullscreen */
+  .player-container:fullscreen {
+    background: #000;
+  }
+  
+  .player-container:fullscreen .controls,
+  .player-container:fullscreen .url-bar,
+  .player-container:fullscreen .detected-platform {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+  }
+  
+  .player-container:fullscreen .controls {
+    background: rgba(18, 18, 26, 0.95);
   }
 </style>
 </head>
@@ -583,8 +837,8 @@
 
 <div id="lobby">
   <div class="card">
-    <div class="logo">Watch Party</div>
-    <p class="sub">Perfectly synced YouTube - No buffering for viewers!</p>
+    <div class="logo">Universal Watch Party</div>
+    <p class="sub">Watch ANY video with friends — YouTube, Vimeo, Twitch, and more!</p>
     <div class="tabs">
       <button class="tab active" id="tabCreate">Create Room</button>
       <button class="tab" id="tabJoin">Join Room</button>
@@ -613,16 +867,16 @@
 
 <div id="app">
   <div class="topbar">
-    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-      <span style="font-weight: 800;">🎬 Watch Party</span>
+    <div class="topbar-left">
+      <span class="app-logo">🎬 Watch Party</span>
       <div class="room-info">
         <span>Room: <strong id="roomCode">------</strong></span>
         <button class="copy-btn" id="copyRoomCode">📋</button>
       </div>
       <span class="host-badge" id="hostBadge" style="display: none;">HOST</span>
-      <div class="sync-status" id="syncStatus">
+      <div class="sync-status">
         <div class="sync-dot"></div>
-        <span id="syncText">Synced</span>
+        <span id="syncText">Ready</span>
       </div>
     </div>
     <span class="member-count" id="memberCount">0/20 members</span>
@@ -631,21 +885,27 @@
   <div class="main">
     <div class="video-panel">
       <div class="url-bar" id="hostControls">
-        <input type="text" id="videoUrl" placeholder="Paste YouTube URL (e.g., https://youtube.com/watch?v=...)">
+        <input type="text" id="videoUrl" placeholder="Paste any video URL (YouTube, Vimeo, Twitch, TikTok, etc.)">
         <button id="loadVideoBtn">🎬 Load Video</button>
       </div>
       <div class="url-bar" id="guestControls" style="display: none;">
         <span style="color: var(--muted);">⏳ Waiting for host to load a video...</span>
       </div>
       
-      <div class="player-container">
-        <div class="player-wrapper">
-          <div id="youtube-player"></div>
+      <div class="detected-platform" id="detectedPlatform" style="display: none;">
+        <span>🔍 Detected:</span>
+        <span class="platform-badge" id="platformName">-</span>
+      </div>
+      
+      <div class="player-container" id="playerContainer">
+        <div class="player-wrapper" id="playerWrapper">
+          <iframe id="videoFrame" style="width:100%; height:100%; border:none; display:none;"></iframe>
         </div>
         <div class="placeholder" id="placeholder">
           <div style="font-size: 48px; margin-bottom: 12px;">🎬</div>
           <p>No video loaded</p>
-          <p style="font-size: 12px; margin-top: 8px;">Host: Paste a YouTube URL and click Load</p>
+          <p style="font-size: 12px; margin-top: 8px;">Host: Paste any video URL and click Load</p>
+          <p style="font-size: 11px; margin-top: 6px; color: var(--muted);">Supports: YouTube, Vimeo, Dailymotion, Twitch, TikTok, Facebook, Twitter, Instagram, MP4, and more!</p>
         </div>
       </div>
       
@@ -657,10 +917,11 @@
           <span>🔊</span>
           <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
         </div>
+        <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">⛶</button>
       </div>
     </div>
     
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
       <div class="members-section">
         <div class="section-title">👥 Members</div>
         <div class="member-list" id="membersList"></div>
@@ -677,6 +938,7 @@
   </div>
 </div>
 
+<button class="chat-toggle" id="chatToggleBtn" style="display: none;">💬</button>
 <div id="toast"></div>
 
 <script>
@@ -686,17 +948,13 @@ let myId;
 let myName;
 let roomId;
 let isHost = false;
-let player = null;
+let currentPlatform = null;
+let currentVideoUrl = null;
 let playerReady = false;
 let isSeeking = false;
-let currentVideoId = null;
-let lastSyncTime = 0;
-let forceSyncInterval;
-let viewerForceSyncInterval;
-let lastState = { playing: false, time: 0 };
 
 // Helper functions
-function showToast(msg, duration = 2000) {
+function showToast(msg, duration = 3000) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -714,116 +972,175 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function extractVideoId(url) {
-  if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#]+)/,
-    /youtube\.com\/embed\/([^?]+)/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
+// Extract YouTube ID from any YouTube URL (including m.youtube.com)
+function extractYouTubeId(url) {
+  const urlLower = url.toLowerCase();
+  
+  // Handle youtu.be format
+  let match = url.match(/youtu\.be\/([^?&]+)/);
+  if (match) return match[1];
+  
+  // Handle youtube.com/watch?v=
+  match = url.match(/[?&]v=([^&]+)/);
+  if (match) return match[1];
+  
+  // Handle youtube.com/embed/
+  match = url.match(/\/embed\/([^?&]+)/);
+  if (match) return match[1];
+  
+  // Handle m.youtube.com
+  match = url.match(/m\.youtube\.com\/watch\?v=([^&]+)/);
+  if (match) return match[1];
+  
+  // Handle youtu.be with parameters
+  match = url.match(/youtu\.be\/([^?]+)/);
+  if (match) return match[1];
+  
   return null;
 }
 
-// Create YouTube player with forced low quality for viewers
-function createPlayer(videoId, startTime = 0, autoPlay = false) {
-  const placeholder = document.getElementById('placeholder');
-  placeholder.style.display = 'none';
+// Detect video platform from URL
+function detectVideoPlatform(url) {
+  if (!url) return null;
+  const urlLower = url.toLowerCase();
   
-  if (player) {
-    try { player.destroy(); } catch(e) {}
-    player = null;
-    playerReady = false;
+  // YouTube (including m.youtube.com)
+  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
+    const videoId = extractYouTubeId(url);
+    if (videoId) {
+      return {
+        platform: 'youtube',
+        embedUrl: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&controls=1&modestbranding=1&rel=0&autoplay=0`,
+        videoId: videoId
+      };
+    }
   }
   
-  console.log(`Creating player: ${videoId}, start: ${startTime}, autoPlay: ${autoPlay}`);
-  
-  player = new YT.Player('youtube-player', {
-    height: '100%',
-    width: '100%',
-    videoId: videoId,
-    playerVars: {
-      controls: 0,
-      disablekb: 1,
-      modestbranding: 1,
-      rel: 0,
-      origin: window.location.origin,
-      autoplay: autoPlay ? 1 : 0,
-      start: Math.floor(startTime),
-      iv_load_policy: 3,
-      playsinline: 1
-    },
-    events: {
-      onReady: (event) => {
-        playerReady = true;
-        event.target.setVolume(parseInt(document.getElementById('volumeSlider').value));
-        
-        // FORCE LOW QUALITY FOR VIEWERS - This prevents buffering!
-        if (!isHost) {
-          setTimeout(() => {
-            if (player && playerReady) {
-              // Force lowest quality for smooth playback
-              player.setPlaybackQuality('small');
-              console.log('Forced low quality for viewer');
-            }
-          }, 500);
-        } else {
-          setTimeout(() => {
-            if (player && playerReady) {
-              player.setPlaybackQuality('auto');
-            }
-          }, 500);
-        }
-        
-        if (startTime > 0 && !autoPlay) {
-          event.target.seekTo(startTime, true);
-          event.target.pauseVideo();
-        }
-        
-        showToast('✅ Player ready!');
-        document.getElementById('syncText').textContent = 'Synced';
-      },
-      onStateChange: (event) => {
-        const playBtn = document.getElementById('playPauseBtn');
-        const state = event.data;
-        
-        if (state === YT.PlayerState.PLAYING) {
-          playBtn.textContent = '⏸';
-          document.getElementById('syncText').textContent = 'Playing';
-          lastState.playing = true;
-        } else if (state === YT.PlayerState.PAUSED) {
-          playBtn.textContent = '▶';
-          document.getElementById('syncText').textContent = 'Paused';
-          lastState.playing = false;
-        } else if (state === YT.PlayerState.BUFFERING) {
-          document.getElementById('syncText').textContent = 'Buffering...';
-          // Force quality down if buffering
-          if (!isHost && player && playerReady) {
-            setTimeout(() => {
-              try { player.setPlaybackQuality('small'); } catch(e) {}
-            }, 500);
-          }
-        } else if (state === YT.PlayerState.ENDED) {
-          playBtn.textContent = '▶';
-          document.getElementById('syncText').textContent = 'Ended';
-        }
-      },
-      onError: (event) => {
-        console.error('YouTube error:', event.data);
-        let errorMsg = 'Failed to load video. ';
-        if (event.data === 2) errorMsg += 'Invalid video ID.';
-        else if (event.data === 5) errorMsg += 'HTML5 player error.';
-        else if (event.data === 100) errorMsg += 'Video not found.';
-        else if (event.data === 101 || event.data === 150) errorMsg += 'Video cannot be embedded.';
-        else errorMsg += 'Try another video.';
-        showToast('❌ ' + errorMsg);
-        document.getElementById('placeholder').style.display = 'flex';
-        playerReady = false;
-      }
+  // Vimeo
+  if (urlLower.includes('vimeo.com')) {
+    const match = url.match(/vimeo\.com\/(\d+)/);
+    if (match) {
+      return {
+        platform: 'vimeo',
+        embedUrl: `https://player.vimeo.com/video/${match[1]}?autoplay=0`,
+        videoId: match[1]
+      };
     }
-  });
+  }
+  
+  // Dailymotion
+  if (urlLower.includes('dailymotion.com')) {
+    const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
+    if (match) {
+      return {
+        platform: 'dailymotion',
+        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`,
+        videoId: match[1]
+      };
+    }
+  }
+  
+  // Twitch
+  if (urlLower.includes('twitch.tv')) {
+    const match = url.match(/twitch\.tv\/([^\/?]+)/);
+    if (match) {
+      return {
+        platform: 'twitch',
+        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${window.location.hostname}&autoplay=false`,
+        videoId: match[1]
+      };
+    }
+  }
+  
+  // TikTok
+  if (urlLower.includes('tiktok.com')) {
+    return {
+      platform: 'tiktok',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Facebook
+  if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch')) {
+    return {
+      platform: 'facebook',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Twitter/X
+  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
+    return {
+      platform: 'twitter',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Instagram
+  if (urlLower.includes('instagram.com')) {
+    return {
+      platform: 'instagram',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Direct video files
+  if (url.match(/\.(mp4|webm|ogg|mov|mkv|avi)(\?|$)/i)) {
+    return {
+      platform: 'direct',
+      embedUrl: url,
+      videoId: null
+    };
+  }
+  
+  // Generic
+  return {
+    platform: 'generic',
+    embedUrl: url,
+    videoId: null
+  };
+}
+
+// Render video
+function renderVideo(videoUrl, platform) {
+  const iframe = document.getElementById('videoFrame');
+  const placeholder = document.getElementById('placeholder');
+  const detectedPlatform = document.getElementById('detectedPlatform');
+  const platformName = document.getElementById('platformName');
+  
+  if (!videoUrl) return false;
+  
+  placeholder.style.display = 'none';
+  detectedPlatform.style.display = 'flex';
+  platformName.textContent = platform.toUpperCase();
+  
+  currentPlatform = platform;
+  currentVideoUrl = videoUrl;
+  
+  // Set iframe source
+  iframe.style.display = 'block';
+  iframe.src = videoUrl;
+  
+  // Add sandbox attributes for security but allow necessary features
+  iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-presentation');
+  iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+  iframe.setAttribute('allowfullscreen', 'true');
+  
+  showToast(`✅ Loaded: ${platform.toUpperCase()}`);
+  playerReady = true;
+  
+  // Add load error handler
+  iframe.onerror = () => {
+    showToast(`⚠️ Could not load ${platform} video. Try a different link.`);
+    placeholder.style.display = 'flex';
+    iframe.style.display = 'none';
+  };
+  
+  return true;
 }
 
 // Socket event handlers
@@ -856,84 +1173,37 @@ function initSocket(name, callback) {
     isHost = true;
     updateUI();
     showToast('👑 You are now the host!');
-    // Reset quality for host
-    if (player && playerReady) {
-      player.setPlaybackQuality('auto');
-    }
   });
   
   socket.on('host_changed', () => {
     isHost = false;
     updateUI();
     showToast('Host left - you are now a viewer');
-    // Force low quality for viewer
-    if (player && playerReady) {
-      player.setPlaybackQuality('small');
-    }
   });
   
-  socket.on('video_loaded', ({ videoId, currentTime, isPlaying }) => {
-    if (videoId && currentVideoId !== videoId) {
-      currentVideoId = videoId;
-      createPlayer(videoId, currentTime, isPlaying);
+  socket.on('video_loaded', ({ videoUrl, videoPlatform, currentTime, isPlaying }) => {
+    if (videoUrl && currentVideoUrl !== videoUrl) {
+      renderVideo(videoUrl, videoPlatform);
     }
   });
   
   socket.on('video_play', ({ currentTime }) => {
-    if (!isHost && player && playerReady) {
-      const playerTime = player.getCurrentTime();
-      const diff = Math.abs(playerTime - currentTime);
-      
-      if (diff > 1.5) {
-        player.seekTo(currentTime, true);
-      }
-      
-      setTimeout(() => {
-        if (player && playerReady && player.getPlayerState() !== 1) {
-          player.playVideo();
-        }
-      }, 100);
+    if (!isHost) {
+      showToast('▶️ Host started playing', 1000);
+      document.getElementById('syncText').textContent = 'Playing';
     }
   });
   
   socket.on('video_pause', ({ currentTime }) => {
-    if (!isHost && player && playerReady) {
-      const playerTime = player.getCurrentTime();
-      const diff = Math.abs(playerTime - currentTime);
-      
-      if (diff > 1.5) {
-        player.seekTo(currentTime, true);
-      }
-      
-      setTimeout(() => {
-        if (player && playerReady && player.getPlayerState() === 1) {
-          player.pauseVideo();
-        }
-      }, 100);
+    if (!isHost) {
+      showToast('⏸️ Host paused', 1000);
+      document.getElementById('syncText').textContent = 'Paused';
     }
   });
   
   socket.on('video_seek', ({ currentTime }) => {
-    if (!isHost && player && playerReady) {
-      player.seekTo(currentTime, true);
-    }
-  });
-  
-  socket.on('force_sync_response', ({ currentTime, isPlaying }) => {
-    if (!isHost && player && playerReady) {
-      const playerTime = player.getCurrentTime();
-      const diff = Math.abs(playerTime - currentTime);
-      
-      if (diff > 0.8) {
-        player.seekTo(currentTime, true);
-        showToast(`🔧 Syncing...`, 1000);
-      }
-      
-      if (isPlaying && player.getPlayerState() !== 1) {
-        player.playVideo();
-      } else if (!isPlaying && player.getPlayerState() === 1) {
-        player.pauseVideo();
-      }
+    if (!isHost) {
+      showToast(`⏩ Seek to ${formatTime(currentTime)}`, 1000);
     }
   });
   
@@ -946,6 +1216,7 @@ function updateUI() {
   const hostBadge = document.getElementById('hostBadge');
   const playPauseBtn = document.getElementById('playPauseBtn');
   const seekBar = document.getElementById('seekBar');
+  const loadBtn = document.getElementById('loadVideoBtn');
   
   if (isHost) {
     hostControls.style.display = 'flex';
@@ -953,12 +1224,14 @@ function updateUI() {
     hostBadge.style.display = 'inline-block';
     playPauseBtn.disabled = false;
     seekBar.disabled = false;
+    if (loadBtn) loadBtn.disabled = false;
   } else {
     hostControls.style.display = 'none';
     guestControls.style.display = 'flex';
     hostBadge.style.display = 'none';
     playPauseBtn.disabled = true;
     seekBar.disabled = true;
+    if (loadBtn) loadBtn.disabled = true;
   }
 }
 
@@ -978,8 +1251,8 @@ function updateRoomUI(info) {
     avatar.textContent = m.name[0].toUpperCase();
     
     const nameSpan = document.createElement('span');
+    nameSpan.className = 'member-name';
     nameSpan.textContent = m.name;
-    nameSpan.style.flex = '1';
     
     div.appendChild(avatar);
     div.appendChild(nameSpan);
@@ -1088,116 +1361,84 @@ function enterApp(info) {
   updateRoomUI(info);
   updateUI();
   
-  if (info.videoId) {
-    currentVideoId = info.videoId;
-    createPlayer(info.videoId, info.currentTime, info.isPlaying);
+  // Setup mobile chat toggle
+  const sidebar = document.getElementById('sidebar');
+  const chatToggle = document.getElementById('chatToggleBtn');
+  if (window.innerWidth <= 768) {
+    chatToggle.style.display = 'flex';
+    chatToggle.onclick = () => {
+      sidebar.classList.toggle('open');
+    };
   }
   
-  // Aggressive sync for viewers - every 1 second!
-  if (!isHost) {
-    viewerForceSyncInterval = setInterval(() => {
-      if (player && playerReady && !isSeeking) {
-        socket.emit('force_sync', { 
-          currentTime: player.getCurrentTime(), 
-          isPlaying: player.getPlayerState() === 1 
-        });
-      }
-    }, 1000);
-  } else {
-    // Host sends sync every 2 seconds
-    setInterval(() => {
-      if (player && playerReady && !isSeeking) {
-        socket.emit('force_sync', { 
-          currentTime: player.getCurrentTime(), 
-          isPlaying: player.getPlayerState() === 1 
-        });
-      }
-    }, 2000);
+  if (info.videoUrl) {
+    renderVideo(info.videoUrl, info.videoPlatform || 'generic');
   }
 }
 
 // Load video (host only)
-function loadVideo() {
+async function loadVideo() {
   if (!isHost) return;
   
   const url = document.getElementById('videoUrl').value.trim();
   if (!url) {
-    showToast('Please enter a YouTube URL');
+    showToast('Please enter a video URL');
     return;
   }
   
-  const videoId = extractVideoId(url);
-  if (!videoId) {
-    showToast('❌ Invalid YouTube URL');
+  showToast('🔍 Detecting video source...');
+  
+  // Detect platform
+  const detected = detectVideoPlatform(url);
+  
+  if (!detected) {
+    showToast('❌ Could not detect video source');
     return;
   }
   
-  showToast('📡 Loading video...');
-  socket.emit('load_video', { videoId }, (res) => {
+  showToast(`📡 Loading from ${detected.platform.toUpperCase()}...`);
+  
+  // Test render locally first
+  const testRender = renderVideo(detected.embedUrl, detected.platform);
+  if (!testRender) {
+    showToast('❌ Failed to load video preview');
+    return;
+  }
+  
+  // Send to server
+  socket.emit('load_video', { 
+    videoUrl: detected.embedUrl, 
+    videoPlatform: detected.platform 
+  }, (res) => {
     if (res.success) {
-      showToast('✅ Video loaded for everyone!');
-      currentVideoId = videoId;
-      createPlayer(videoId, 0, false);
+      showToast(`✅ Video loaded! (${detected.platform.toUpperCase()})`);
     } else {
-      showToast('❌ Failed to load video');
+      showToast('❌ Failed to load video for others');
     }
   });
 }
 
-// Video controls (host only)
-function togglePlayPause() {
-  if (!isHost || !player || !playerReady) return;
-  
-  const state = player.getPlayerState();
-  if (state === 1) {
-    const currentTime = player.getCurrentTime();
-    player.pauseVideo();
-    socket.emit('pause_video', { currentTime });
+// Fullscreen
+function toggleFullscreen() {
+  const container = document.getElementById('playerContainer');
+  if (!document.fullscreenElement) {
+    container.requestFullscreen().catch(err => {
+      showToast(`Fullscreen error: ${err.message}`);
+    });
   } else {
-    const currentTime = player.getCurrentTime();
-    player.playVideo();
-    socket.emit('play_video', { currentTime });
+    document.exitFullscreen();
   }
 }
 
-function onSeekInput() {
-  if (!isHost || !player || !playerReady) return;
-  isSeeking = true;
+// Update time display (for non-iframe videos)
+function updateTimeDisplay() {
+  // For iframe players, we can't get current time accurately
+  // Just show a message
+  const timeSpan = document.getElementById('timeDisplay');
+  if (currentPlatform !== 'direct') {
+    timeSpan.textContent = 'Use player controls';
+  }
 }
-
-function onSeekChange(e) {
-  if (!isHost || !player || !playerReady) return;
-  const percent = parseFloat(e.target.value);
-  const duration = player.getDuration();
-  const time = (percent / 100) * duration;
-  player.seekTo(time, true);
-  socket.emit('seek_video', { currentTime: time });
-  setTimeout(() => { isSeeking = false; }, 100);
-}
-
-function updatePlayerUI() {
-  if (!player || !playerReady) return;
-  
-  try {
-    const currentTime = player.getCurrentTime();
-    const duration = player.getDuration();
-    
-    if (duration && !isSeeking) {
-      const percent = (currentTime / duration) * 100;
-      document.getElementById('seekBar').value = percent;
-      document.getElementById('timeDisplay').textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-    }
-    
-    const playBtn = document.getElementById('playPauseBtn');
-    const state = player.getPlayerState();
-    playBtn.textContent = state === 1 ? '⏸' : '▶';
-  } catch(e) {}
-}
-
-// Setup intervals
-setInterval(() => {
-  updatePlayerUI();
-}, 300);
 
 // Event listeners
 document.getElementById('tabCreate').addEventListener('click', () => {
@@ -1218,7 +1459,6 @@ document.getElementById('tabJoin').addEventListener('click', () => {
 
 document.getElementById('createRoomBtn').addEventListener('click', createRoom);
 document.getElementById('joinRoomBtn').addEventListener('click', joinRoom);
-
 document.getElementById('copyRoomCode').addEventListener('click', () => {
   if (roomId) {
     navigator.clipboard.writeText(roomId);
@@ -1231,14 +1471,16 @@ document.getElementById('videoUrl').addEventListener('keypress', (e) => {
   if (e.key === 'Enter') loadVideo();
 });
 
-document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
-document.getElementById('seekBar').addEventListener('input', onSeekInput);
-document.getElementById('seekBar').addEventListener('change', onSeekChange);
+document.getElementById('playPauseBtn').addEventListener('click', () => {
+  if (!isHost) return;
+  showToast('For embedded videos, use the video player controls', 2000);
+});
+
+document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
 
 document.getElementById('volumeSlider').addEventListener('input', (e) => {
-  if (player && playerReady) {
-    player.setVolume(parseInt(e.target.value));
-  }
+  // Volume control for iframe is limited
+  localStorage.setItem('volume', e.target.value);
 });
 
 // Chat
@@ -1255,6 +1497,21 @@ document.getElementById('chatMessage').addEventListener('keypress', (e) => {
     document.getElementById('sendBtn').click();
   }
 });
+
+// Window resize handler for mobile
+window.addEventListener('resize', () => {
+  const sidebar = document.getElementById('sidebar');
+  const chatToggle = document.getElementById('chatToggleBtn');
+  if (window.innerWidth <= 768) {
+    chatToggle.style.display = 'flex';
+    sidebar.classList.remove('open');
+  } else {
+    chatToggle.style.display = 'none';
+    sidebar.classList.remove('open');
+  }
+});
+
+setInterval(updateTimeDisplay, 1000);
 </script>
 </body>
 </html>
