@@ -38,11 +38,8 @@ function roomInfo(roomId) {
     members: Array.from(room.members.entries()).map(([id, d]) => ({
       id, name: d.name, color: d.color,
     })),
-    videoId: room.videoId,
-    videoPlatform: room.videoPlatform,
-    videoUrl: room.videoUrl,
-    isPlaying: room.isPlaying,
-    currentTime: room.currentTime
+    isSharing: room.isSharing,
+    screenShareAvailable: room.screenShareAvailable
   };
 }
 
@@ -55,12 +52,10 @@ io.on("connection", (socket) => {
     
     rooms[roomId] = {
       host: socket.id,
-      members: new Map([[socket.id, { name, color }]]),
-      videoId: null,
-      videoPlatform: null,
-      videoUrl: null,
-      isPlaying: false,
-      currentTime: 0,
+      members: new Map([[socket.id, { name, color, socketId: socket.id }]]),
+      isSharing: false,
+      screenShareAvailable: false,
+      peerConnections: new Map(),
       lastUpdate: Date.now()
     };
     
@@ -87,7 +82,7 @@ io.on("connection", (socket) => {
     const usedColors = new Set([...room.members.values()].map((m) => m.color));
     const color = COLORS.find((c) => !usedColors.has(c)) || COLORS[room.members.size % COLORS.length];
     
-    room.members.set(socket.id, { name, color });
+    room.members.set(socket.id, { name, color, socketId: socket.id });
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.name = name;
@@ -103,79 +98,54 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("load_video", ({ videoId, platform, videoUrl }, cb) => {
+  // WebRTC Signaling
+  socket.on("start_screen_share", async () => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.videoId = videoId;
-    room.videoPlatform = platform;
-    room.videoUrl = videoUrl;
-    room.isPlaying = false;
-    room.currentTime = 0;
-    room.lastUpdate = Date.now();
-    
-    io.to(socket.data.roomId).emit("video_loaded", {
-      videoId: videoId,
-      videoPlatform: platform,
-      videoUrl: videoUrl,
-      currentTime: 0,
-      isPlaying: false
-    });
-    
-    cb({ success: true });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${platform}`);
+    room.isSharing = true;
+    room.screenShareAvailable = true;
+    io.to(socket.data.roomId).emit("screen_share_started");
+    console.log(`📺 Screen sharing started in ${socket.data.roomId}`);
   });
 
-  socket.on("play_video", ({ currentTime }) => {
+  socket.on("stop_screen_share", () => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.isPlaying = true;
-    room.currentTime = currentTime;
-    room.lastUpdate = Date.now();
-    
-    console.log(`▶️ Play at ${currentTime} in ${socket.data.roomId}`);
-    io.to(socket.data.roomId).emit("video_play", { currentTime });
+    room.isSharing = false;
+    room.screenShareAvailable = false;
+    io.to(socket.data.roomId).emit("screen_share_stopped");
+    console.log(`🛑 Screen sharing stopped in ${socket.data.roomId}`);
   });
 
-  socket.on("pause_video", ({ currentTime }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.isPlaying = false;
-    room.currentTime = currentTime;
-    room.lastUpdate = Date.now();
-    
-    console.log(`⏸️ Pause at ${currentTime} in ${socket.data.roomId}`);
-    io.to(socket.data.roomId).emit("video_pause", { currentTime });
-  });
-
-  socket.on("seek_video", ({ currentTime }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.currentTime = currentTime;
-    room.lastUpdate = Date.now();
-    
-    console.log(`⏩ Seek to ${currentTime} in ${socket.data.roomId}`);
-    io.to(socket.data.roomId).emit("video_seek", { currentTime });
-  });
-
-  // Force sync - host sends to all viewers
-  socket.on("force_sync", ({ currentTime, isPlaying }) => {
+  // WebRTC signaling for viewers
+  socket.on("viewer_ready", ({ viewerId }) => {
     const room = getRoom(socket.data.roomId);
     if (!room) return;
     
-    // Update room state
-    room.currentTime = currentTime;
-    room.isPlaying = isPlaying;
-    room.lastUpdate = Date.now();
+    socket.to(room.host).emit("viewer_ready", { viewerId: socket.id });
+  });
+
+  socket.on("offer", ({ offer, viewerId }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room || room.host !== socket.id) return;
     
-    // Broadcast to everyone EXCEPT sender
-    socket.to(socket.data.roomId).emit("force_sync_response", { 
-      currentTime: currentTime, 
-      isPlaying: isPlaying 
-    });
+    io.to(viewerId).emit("offer", { offer, hostId: socket.id });
+  });
+
+  socket.on("answer", ({ answer, hostId }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    
+    io.to(hostId).emit("answer", { answer, viewerId: socket.id });
+  });
+
+  socket.on("ice_candidate", ({ candidate, targetId }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room) return;
+    
+    io.to(targetId).emit("ice_candidate", { candidate, senderId: socket.id });
   });
 
   socket.on("chat_send", ({ text }) => {
@@ -209,10 +179,15 @@ io.on("connection", (socket) => {
     }
 
     if (wasHost) {
+      // Stop screen sharing if host disconnects
+      room.isSharing = false;
+      room.screenShareAvailable = false;
+      
       const newHostId = [...room.members.keys()][0];
       room.host = newHostId;
       io.to(newHostId).emit("you_are_host");
       io.to(roomId).emit("host_changed", { newHost: newHostId });
+      io.to(roomId).emit("screen_share_stopped");
       console.log(`👑 Host transferred to ${newHostId}`);
     }
 
@@ -229,6 +204,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Watch Party Server running!`);
+  console.log(`\n🎬 Screen Share Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
 });
