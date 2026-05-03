@@ -94,7 +94,24 @@ io.on("connection", (socket) => {
     socket.data.name = name;
 
     console.log(`👤 ${name} joined ${roomId}`);
+    
+    // Send current state to the new joiner
     cb({ ok: true, roomId, info: roomInfo(roomId) });
+    
+    // Send current content state to the new joiner
+    if (room.mode === 'youtube' && room.videoId) {
+      socket.emit("youtube_loaded", {
+        videoId: room.videoId,
+        currentTime: room.currentTime,
+        isPlaying: room.isPlaying
+      });
+    } else if (room.mode === 'screenshare' && room.isSharing) {
+      socket.emit("screen_share_started");
+      // Notify host to send offer to new viewer
+      if (room.host) {
+        io.to(room.host).emit("new_viewer_joined", { viewerId: socket.id });
+      }
+    }
     
     io.to(roomId).emit("room_update", roomInfo(roomId));
     io.to(roomId).emit("chat_message", {
@@ -158,21 +175,15 @@ io.on("connection", (socket) => {
     io.to(socket.data.roomId).emit("youtube_seek", { currentTime });
   });
 
-  socket.on("youtube_sync_request", ({ currentTime, isPlaying }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room) return;
-    
-    socket.to(room.host).emit("youtube_sync_response", { currentTime, isPlaying });
-  });
-
   // Screen Share Events
-  socket.on("start_screen_share", async () => {
+  socket.on("start_screen_share", () => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
     room.mode = "screenshare";
     room.isSharing = true;
     room.videoId = null;
+    room.currentTime = 0;
     
     io.to(socket.data.roomId).emit("screen_share_started");
     console.log(`📺 Screen sharing started in ${socket.data.roomId}`);
@@ -201,8 +212,27 @@ io.on("connection", (socket) => {
     if (!room) return;
     
     if (room.isSharing && room.host) {
-      io.to(room.host).emit("viewer_ready", { viewerId: socket.id });
+      // Send current stream to the new viewer
+      io.to(room.host).emit("offer_request", { viewerId: socket.id });
     }
+  });
+  
+  socket.on("new_viewer_joined", ({ viewerId }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room || room.host !== socket.id) return;
+    
+    if (room.isSharing) {
+      // Trigger offer creation for the new viewer
+      io.to(room.host).emit("offer_request", { viewerId });
+    }
+  });
+
+  socket.on("offer_request", ({ viewerId }) => {
+    const room = getRoom(socket.data.roomId);
+    if (!room || room.host !== socket.id) return;
+    
+    // Create offer for the new viewer
+    socket.emit("create_offer_for_viewer", { viewerId });
   });
 
   socket.on("offer", ({ offer, viewerId }) => {
@@ -293,9 +323,9 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n🎬 Ultimate Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
-  console.log(`\nFeatures:`);
-  console.log(`  • YouTube Sync - Perfect synchronization for everyone`);
-  console.log(`  • Screen Share - Watch ANY content together (Amazon, Netflix, etc.)`);
-  console.log(`  • Audio Sharing - Share system audio with screen`);
-  console.log(`  • Chat - Built-in messaging`);
+  console.log(`\n✨ Features:`);
+  console.log(`  • YouTube Sync - Perfect synchronization`);
+  console.log(`  • Screen Share - Watch ANY content together`);
+  console.log(`  • Auto-sync for new joiners`);
+  console.log(`  • Low latency streaming`);
 });
