@@ -2,6 +2,8 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+const axios = require("axios");
+const cheerio = require("cheerio");
 
 const app = express();
 const server = http.createServer(app);
@@ -13,6 +15,146 @@ const io = new Server(server, {
 });
 
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
+
+// API endpoint to get video embed info
+app.post("/api/get-embed-url", async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: "No URL provided" });
+  
+  try {
+    const embedInfo = await getEmbedUrl(url);
+    res.json(embedInfo);
+  } catch (error) {
+    console.error("Error getting embed URL:", error);
+    res.status(500).json({ error: "Failed to get video embed URL" });
+  }
+});
+
+async function getEmbedUrl(url) {
+  const urlLower = url.toLowerCase();
+  
+  // YouTube - Fix for m.youtube.com and all YouTube URLs
+  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
+    let videoId = null;
+    
+    // Handle youtu.be format
+    let match = url.match(/youtu\.be\/([^?&]+)/);
+    if (match) videoId = match[1];
+    
+    // Handle youtube.com/watch?v=
+    match = url.match(/[?&]v=([^&]+)/);
+    if (match) videoId = match[1];
+    
+    // Handle youtube.com/embed/
+    match = url.match(/\/embed\/([^?&]+)/);
+    if (match) videoId = match[1];
+    
+    // Handle m.youtube.com
+    match = url.match(/m\.youtube\.com\/watch\?v=([^&]+)/);
+    if (match) videoId = match[1];
+    
+    if (videoId) {
+      return {
+        platform: 'youtube',
+        embedUrl: `https://www.youtube.com/embed/${videoId}`,
+        videoId: videoId,
+        title: 'YouTube Video'
+      };
+    }
+  }
+  
+  // Vimeo
+  if (urlLower.includes('vimeo.com')) {
+    const match = url.match(/vimeo\.com\/(\d+)/);
+    if (match) {
+      return {
+        platform: 'vimeo',
+        embedUrl: `https://player.vimeo.com/video/${match[1]}`,
+        videoId: match[1],
+        title: 'Vimeo Video'
+      };
+    }
+  }
+  
+  // Dailymotion
+  if (urlLower.includes('dailymotion.com')) {
+    const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
+    if (match) {
+      return {
+        platform: 'dailymotion',
+        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`,
+        videoId: match[1],
+        title: 'Dailymotion Video'
+      };
+    }
+  }
+  
+  // Twitch
+  if (urlLower.includes('twitch.tv')) {
+    const match = url.match(/twitch\.tv\/([^\/?]+)/);
+    if (match) {
+      return {
+        platform: 'twitch',
+        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${process.env.DOMAIN || 'localhost'}`,
+        videoId: match[1],
+        title: `Twitch: ${match[1]}`
+      };
+    }
+  }
+  
+  // Facebook
+  if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch')) {
+    return {
+      platform: 'facebook',
+      embedUrl: url,
+      title: 'Facebook Video'
+    };
+  }
+  
+  // TikTok
+  if (urlLower.includes('tiktok.com')) {
+    return {
+      platform: 'tiktok',
+      embedUrl: url,
+      title: 'TikTok Video'
+    };
+  }
+  
+  // Twitter/X
+  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
+    return {
+      platform: 'twitter',
+      embedUrl: url,
+      title: 'Twitter Video'
+    };
+  }
+  
+  // Instagram
+  if (urlLower.includes('instagram.com')) {
+    return {
+      platform: 'instagram',
+      embedUrl: url,
+      title: 'Instagram Video'
+    };
+  }
+  
+  // Direct video files
+  if (url.match(/\.(mp4|webm|ogg|mov|mkv|avi)(\?|$)/i)) {
+    return {
+      platform: 'direct',
+      embedUrl: url,
+      title: 'Video File'
+    };
+  }
+  
+  // Generic embed
+  return {
+    platform: 'generic',
+    embedUrl: url,
+    title: 'Embedded Video'
+  };
+}
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
@@ -22,7 +164,7 @@ const rooms = {};
 const COLORS = [
   "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
   "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585",
-  "#48CAE4", "#E9C46A"
+  "#48CAE4", "#E9C46A", "#FF6B4A", "#4ECDC4"
 ];
 
 function getRoom(roomId) {
@@ -38,7 +180,8 @@ function roomInfo(roomId) {
     members: Array.from(room.members.entries()).map(([id, d]) => ({
       id, name: d.name, color: d.color,
     })),
-    videoId: room.videoId,
+    videoUrl: room.videoUrl,
+    videoPlatform: room.videoPlatform,
     isPlaying: room.isPlaying,
     currentTime: room.currentTime
   };
@@ -54,7 +197,8 @@ io.on("connection", (socket) => {
     rooms[roomId] = {
       host: socket.id,
       members: new Map([[socket.id, { name, color }]]),
-      videoId: null,
+      videoUrl: null,
+      videoPlatform: null,
       isPlaying: false,
       currentTime: 0,
       lastUpdate: Date.now()
@@ -99,23 +243,25 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("load_video", ({ videoId }, cb) => {
+  socket.on("load_video", ({ videoUrl, videoPlatform }, cb) => {
     const room = getRoom(socket.data.roomId);
     if (!room || room.host !== socket.id) return;
     
-    room.videoId = videoId;
+    room.videoUrl = videoUrl;
+    room.videoPlatform = videoPlatform;
     room.isPlaying = false;
     room.currentTime = 0;
     room.lastUpdate = Date.now();
     
     io.to(socket.data.roomId).emit("video_loaded", {
-      videoId: videoId,
+      videoUrl: videoUrl,
+      videoPlatform: videoPlatform,
       currentTime: 0,
       isPlaying: false
     });
     
     cb({ success: true });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoId}`);
+    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoPlatform}`);
   });
 
   socket.on("play_video", ({ currentTime }) => {
@@ -126,7 +272,6 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    console.log(`▶️ Play at ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_play", { currentTime });
   });
 
@@ -138,7 +283,6 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    console.log(`⏸️ Pause at ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_pause", { currentTime });
   });
 
@@ -149,19 +293,7 @@ io.on("connection", (socket) => {
     room.currentTime = currentTime;
     room.lastUpdate = Date.now();
     
-    console.log(`⏩ Seek to ${currentTime} in ${socket.data.roomId}`);
     io.to(socket.data.roomId).emit("video_seek", { currentTime });
-  });
-
-  socket.on("force_sync", ({ currentTime, isPlaying }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.currentTime = currentTime;
-    room.isPlaying = isPlaying;
-    room.lastUpdate = Date.now();
-    
-    socket.to(socket.data.roomId).emit("force_sync_response", { currentTime, isPlaying });
   });
 
   socket.on("chat_send", ({ text }) => {
@@ -215,6 +347,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Watch Party Server running!`);
+  console.log(`\n🎬 Universal Watch Party Server running!`);
   console.log(`📍 http://localhost:${PORT}`);
 });
