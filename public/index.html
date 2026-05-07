@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"/>
-<title>WatchTogether — Fullscreen Chat + Message Overlay</title>
+<title>WatchTogether — Message Overlay & FullSync</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -13,7 +13,7 @@
     --accent: #7c6cfc; --accent2: #fc6cbe; --text: #e8e8f0; --text2: #8888a8;
     --border: rgba(124,108,252,0.18); --glow: rgba(124,108,252,0.35);
     --danger: #fc4c4c; --success: #4cfc9c; --radius: 14px; --radius-sm: 8px;
-    --overlay-bg: rgba(0,0,0,0.85);
+    --overlay-bg: rgba(0,0,0,0.75);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; overflow: hidden; }
@@ -140,31 +140,19 @@
   .sndbtn { background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:var(--radius-sm); color:#fff; padding:8px 14px; cursor:pointer; font-size:1rem; transition:transform 0.2s; }
   .sndbtn:hover { transform:scale(1.05); }
 
-  /* FLOATING CHAT BUTTON & PANEL (FULLSCREEN FRIENDLY) */
-  .float-chat-btn { position:fixed; bottom:20px; left:20px; width:52px; height:52px; border-radius:30px; background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; color:white; font-size:1.6rem; cursor:pointer; z-index:300; box-shadow:0 6px 20px rgba(0,0,0,0.5); transition:0.2s; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
-  .float-chat-btn:hover { transform:scale(1.08); }
-  .float-chat-panel { position:fixed; bottom:90px; left:20px; width:320px; max-width:calc(100vw - 40px); background:var(--surface); backdrop-filter:blur(20px); border-radius:20px; border:1px solid var(--border); box-shadow:0 20px 35px rgba(0,0,0,0.5); z-index:300; display:flex; flex-direction:column; overflow:hidden; transition:0.2s; opacity:0; visibility:hidden; transform:translateY(20px); pointer-events:none; max-height:70vh; }
-  .float-chat-panel.open { opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto; }
-  .float-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--surface2); border-bottom:1px solid var(--border); font-weight:bold; }
-  .float-header button { background:none; border:none; color:var(--text2); font-size:1rem; cursor:pointer; padding:0 8px; }
-  .float-chat-msgs { flex:1; overflow-y:auto; padding:12px; max-height:300px; min-height:200px; display:flex; flex-direction:column; gap:8px; }
-  .float-chat-input { display:flex; gap:8px; padding:10px; border-top:1px solid var(--border); }
-  .float-chat-input input { flex:1; background:var(--surface2); border:1px solid var(--border); color:white; padding:8px; border-radius:30px; font-size:0.85rem; }
-  .float-chat-input button { background:var(--accent); border:none; border-radius:30px; padding:6px 14px; color:white; cursor:pointer; }
+  /* MESSAGE OVERLAY */
+  .msg-overlay { position:fixed; bottom:80px; left:20px; right:20px; z-index:200; display:flex; flex-direction:column-reverse; gap:10px; pointer-events:none; max-width:400px; }
+  .msg-toast { background:var(--overlay-bg); backdrop-filter:blur(12px); border-left:4px solid var(--accent); border-radius:12px; padding:12px 16px; color:white; font-size:0.9rem; box-shadow:0 8px 20px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; pointer-events:none; word-break:break-word; }
+  .msg-toast strong { color:var(--accent2); font-weight:600; }
+  .msg-toast .preview { font-size:0.85rem; display:block; margin-top:4px; color:#ddd; max-width:100%; }
+  @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  .fade-out { animation: fadeOut 0.5s forwards !important; }
+  @keyframes fadeOut { to { opacity:0; transform:translateY(-10px); visibility:hidden; } }
 
-  /* MESSAGE OVERLAY (bottom-left) */
-  .msg-overlay { position:fixed; bottom:24px; left:24px; right:auto; width:auto; max-width:360px; z-index:250; display:flex; flex-direction:column-reverse; gap:10px; pointer-events:none; }
-  .msg-toast { background:var(--overlay-bg); backdrop-filter:blur(12px); border-left:4px solid var(--accent); border-radius:12px; padding:10px 14px; color:white; font-size:0.85rem; box-shadow:0 8px 20px rgba(0,0,0,0.3); animation: slideUp 0.25s ease; pointer-events:none; word-break:break-word; }
-  .msg-toast strong { color:var(--accent2); }
-  .msg-toast .preview { font-size:0.8rem; display:block; margin-top:4px; color:#ccc; max-width:100%; }
-  @keyframes slideUp { from { opacity:0; transform:translateY(15px); } to { opacity:1; transform:translateY(0); } }
-  .fade-out { animation: fadeOut 0.4s forwards !important; }
-  @keyframes fadeOut { to { opacity:0; transform:translateY(-8px); visibility:hidden; } }
-
-  /* Fullscreen adjustments */
-  .vcont:fullscreen .float-chat-btn, .vcont:fullscreen .msg-overlay { z-index:9999; }
-  .vcont:fullscreen .float-chat-panel { z-index:10000; }
-  .fullscreen-btn { background:rgba(0,0,0,0.6); border:none; color:white; padding:6px 12px; border-radius:30px; font-size:12px; cursor:pointer; margin-left:auto; transition:0.2s; position:absolute; bottom:12px; right:12px; z-index:20; }
+  /* Fullscreen */
+  .vcont:fullscreen { background:#000; }
+  .vcont:fullscreen #ytp, .vcont:fullscreen #ssv { object-fit:contain; }
+  .fullscreen-btn { background:rgba(0,0,0,0.6); border:none; color:white; padding:6px 12px; border-radius:30px; font-size:12px; cursor:pointer; margin-left:auto; transition:0.2s; }
   .fullscreen-btn:hover { background:var(--accent); }
 
   /* Toast */
@@ -182,7 +170,7 @@
 <div id="landing">
   <div class="lbg"></div>
   <div class="logo">WatchTogether</div>
-  <p class="tagline">Sync + Chat + Message Overlay (Fullscreen ready)</p>
+  <p class="tagline">Stream YouTube or screen — sync + message overlays</p>
   <div class="cards">
     <div class="card"><h3>🚀 Create Room</h3><p>Start a watch party</p>
       <input type="text" id="cname" placeholder="Your name" maxlength="24"/>
@@ -225,7 +213,7 @@
         <div class="placeholder" id="ph"><div class="ico">🎬</div><p>Load video or start screen share</p></div>
         <div id="ytp"></div>
         <video id="ssv" autoplay playsinline></video>
-        <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Full</button>
+        <button class="fullscreen-btn" onclick="toggleFullscreen()" style="position:absolute; bottom:12px; right:12px; z-index:20;">⛶ Full</button>
       </div>
 
       <div class="vctrl" id="vctrl">
@@ -241,17 +229,9 @@
     </div>
   </div>
 </div>
-
-<!-- Floating chat button + panel (always visible, even in fullscreen) -->
-<button id="floatChatBtn" class="float-chat-btn">💬</button>
-<div id="floatChatPanel" class="float-chat-panel">
-  <div class="float-header"><span>💬 Room Chat</span><button onclick="closeFloatChat()">✕</button></div>
-  <div id="floatChatMsgs" class="float-chat-msgs"></div>
-  <div class="float-chat-input"><input type="text" id="floatChatInput" placeholder="Message..." maxlength="300" onkeydown="if(event.key==='Enter')sendFloatMsg()"/><button onclick="sendFloatMsg()">Send</button></div>
-</div>
-
-<div id="messageOverlay" class="msg-overlay"></div>
+<button id="sbtog" onclick="document.getElementById('sb').classList.toggle('open')">💬</button>
 <div id="toasts"></div>
+<div id="messageOverlay" class="msg-overlay"></div>
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
@@ -259,14 +239,14 @@
 let socket=null, myId='', myName='', roomId='', isHost=false, iceServers=[];
 let currentMode='youtube', ytPlayer=null, ytAPIReady=false, ytPlayerReady=false;
 let pendingSeek=null, isSyncing=false, progLoop=null, peerConns={}, localStream=null, isSharing=false;
-let messageOverlayEnabled = true;
+let messageOverlayEnabled = true;  // default ON
 
 function toggleMessageOverlay() {
   messageOverlayEnabled = !messageOverlayEnabled;
   const toggle = document.getElementById('msgToggleBtn');
   if(messageOverlayEnabled) toggle.classList.add('active');
   else toggle.classList.remove('active');
-  toast(`Overlay ${messageOverlayEnabled ? 'ON' : 'OFF'}`, 'ok');
+  toast(`Message overlay ${messageOverlayEnabled ? 'ON' : 'OFF'}`, 'ok');
 }
 
 function showMessageOverlay(senderName, fullMessage) {
@@ -281,27 +261,6 @@ function showMessageOverlay(senderName, fullMessage) {
   setTimeout(() => { msgElem.classList.add('fade-out'); setTimeout(() => msgElem.remove(), 500); }, 3800);
 }
 
-// Floating chat UI sync
-function appendFloatMessage(senderName, message, isMe) {
-  const container = document.getElementById('floatChatMsgs');
-  const div = document.createElement('div');
-  div.className = 'cmsg';
-  div.innerHTML = `<div class="sndr${isMe ? ' me' : ''}">${escapeHtml(senderName)}${isMe ? ' (you)' : ''}</div><div class="txt">${escapeHtml(message)}</div>`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-function sendFloatMsg() {
-  const inp = document.getElementById('floatChatInput');
-  const msg = inp.value.trim();
-  if(!msg || !socket) return;
-  socket.emit('chat:send', {message: msg});
-  inp.value = '';
-}
-
-function closeFloatChat() { document.getElementById('floatChatPanel').classList.remove('open'); }
-
-// Socket & Core (identical to previous robust implementation)
 window.onYouTubeIframeAPIReady = function() { ytAPIReady = true; if(window._pendingVid) { _mkPlayer(window._pendingVid); window._pendingVid=null; } };
 function _mkPlayer(videoId) { if(ytPlayer) try{ytPlayer.destroy();}catch(e){} ytPlayerReady=false; let div=document.getElementById('ytp'); if(!div){div=document.createElement('div');div.id='ytp';document.getElementById('vcont').appendChild(div);} div.style.cssText='display:block;position:absolute;inset:0;width:100%;height:100%;'; ytPlayer=new YT.Player('ytp',{videoId,width:'100%',height:'100%',playerVars:{autoplay:1,controls:0,rel:0,modestbranding:1,iv_load_policy:3,disablekb:1,playsinline:1},events:{onReady:_ytReady,onStateChange:_ytState,onError:e=>toast('YT error','err')}}); }
 function _ytReady(e){ytPlayerReady=true; setVol(document.getElementById('vol').value); if(pendingSeek){let{currentTime,playing}=pendingSeek; pendingSeek=null; isSyncing=true; e.target.seekTo(currentTime,true); playing?e.target.playVideo():e.target.pauseVideo(); setTimeout(()=>isSyncing=false,1200);} _startLoop();}
@@ -315,7 +274,7 @@ function initSocket() {
   socket.on('room:user-joined',({id,name})=>{ toast(`${name} joined`); if(isSharing&&localStream) setTimeout(()=>_mkSenderPeer(id),600); });
   socket.on('room:user-left',({id})=>{ if(peerConns[id]){peerConns[id].close();delete peerConns[id];} });
   socket.on('room:promoted-host',()=>{ isHost=true; _showHostUI(); toast('You are now host 👑'); });
-  socket.on('chat:message', (msg)=>{ _appendMsg(msg); appendFloatMessage(msg.senderName, msg.message, msg.senderId===myId); showMessageOverlay(msg.senderName, msg.message); });
+  socket.on('chat:message', (msg)=>{ _appendMsg(msg); showMessageOverlay(msg.senderName, msg.message); });
   socket.on('youtube:load',({videoId})=>{ if(!isHost){ currentMode='youtube'; _showYT(); _loadVid(videoId,null); } });
   socket.on('playback:update',({playing,currentTime})=>{ if(!isHost && ytPlayer && ytPlayerReady){ isSyncing=true; ytPlayer.seekTo(currentTime,true); playing?ytPlayer.playVideo():ytPlayer.pauseVideo(); document.getElementById('bpp').textContent=playing?'⏸':'▶'; setTimeout(()=>isSyncing=false,1200); } });
   socket.on('playback:time',({currentTime,playing})=>{ if(!isHost&&ytPlayer&&ytPlayerReady){ const myTime=ytPlayer.getCurrentTime(); if(Math.abs(myTime-currentTime)>1.5){ isSyncing=true; ytPlayer.seekTo(currentTime,true); setTimeout(()=>isSyncing=false,1000); _flashSync(); } const playingState=ytPlayer.getPlayerState()===YT.PlayerState.PLAYING; if(playing&&!playingState){isSyncing=true;ytPlayer.playVideo();setTimeout(()=>isSyncing=false,800);} if(!playing&&playingState){isSyncing=true;ytPlayer.pauseVideo();setTimeout(()=>isSyncing=false,800);} } });
@@ -343,10 +302,11 @@ function togglePlay(){ if(!ytPlayer||!ytPlayerReady||!isHost){toast('Only host c
 function seekClick(e){ if(!ytPlayer||!ytPlayerReady||!isHost)return; const r=document.getElementById('prog').getBoundingClientRect(); const t=((e.clientX-r.left)/r.width)*(ytPlayer.getDuration()||0); isSyncing=true; ytPlayer.seekTo(t,true); setTimeout(()=>isSyncing=false,800); socket.emit('playback:update',{playing:ytPlayer.getPlayerState()===YT.PlayerState.PLAYING,currentTime:t}); }
 function setVol(v){ if(ytPlayer&&ytPlayerReady)ytPlayer.setVolume(+v); const vid=document.getElementById('ssv'); if(vid)vid.volume=v/100; }
 function _flashSync(){ const c=document.getElementById('vcont'); c.classList.remove('syncflash'); void c.offsetWidth; c.classList.add('syncflash'); }
+
 async function startShare(){ try{ let stream; try{ stream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30}},audio:true});}catch(e){ stream=await navigator.mediaDevices.getDisplayMedia({video:true});} localStream=stream; isSharing=true; _showSS(); const vid=document.getElementById('ssv'); vid.srcObject=stream; vid.muted=true; document.getElementById('bss').style.display='none'; document.getElementById('bss2').style.display=''; document.getElementById('sharebar').classList.add('on'); document.getElementById('slabel').textContent='You are sharing'; stream.getVideoTracks()[0].addEventListener('ended',stopShare); socket.emit('screenshare:start'); } catch(err){ toast(err.message||'Share failed','err'); } }
 function stopShare(){ if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;} isSharing=false; const vid=document.getElementById('ssv'); vid.srcObject=null; vid.classList.remove('on'); document.getElementById('bss').style.display=''; document.getElementById('bss2').style.display='none'; document.getElementById('sharebar').classList.remove('on'); document.getElementById('ph').style.display='flex'; document.getElementById('vctrl').classList.remove('on'); Object.values(peerConns).forEach(p=>p.close()); peerConns={}; socket.emit('screenshare:stop'); }
 async function _mkSenderPeer(peerId){ if(peerConns[peerId]){peerConns[peerId].close();delete peerConns[peerId];} const pc=new RTCPeerConnection({iceServers,iceCandidatePoolSize:10}); peerConns[peerId]=pc; if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream)); pc.onicecandidate=({candidate})=>{if(candidate)socket.emit('webrtc:ice',{to:peerId,candidate});}; pc.oniceconnectionstatechange=()=>{ if(pc.iceConnectionState==='failed') pc.restartIce();}; try{ const offer=await pc.createOffer({offerToReceiveVideo:false,offerToReceiveAudio:false}); await pc.setLocalDescription(offer); socket.emit('webrtc:offer',{to:peerId,offer}); }catch(e){} }
-async function _handleOffer(fromId, offer){ if(peerConns[fromId]){peerConns[fromId].close();delete peerConns[fromId];} const pc=new RTCPeerConnection({iceServers}); peerConns[fromId]=pc; pc.onicecandidate=({candidate})=>{if(candidate)socket.emit('webrtc:ice',{to:fromId,candidate});}; pc.ontrack=(event)=>{ const vid=document.getElementById('ssv'); if(vid.srcObject!==event.streams[0]) vid.srcObject=event.streams[0]; vid.muted=false; _showSS(); document.getElementById('sharebar').classList.add('on'); vid.play().catch(e=>{ if(e.name==='NotAllowedError') toast('Tap to play','ok'); }); }; try{ await pc.setRemoteDescription(new RTCSessionDescription(offer)); const answer=await pc.createAnswer(); await pc.setLocalDescription(answer); socket.emit('webrtc:answer',{to:fromId,answer}); }catch(e){} }
+async function _handleOffer(fromId, offer){ if(peerConns[fromId]){peerConns[fromId].close();delete peerConns[fromId];} const pc=new RTCPeerConnection({iceServers}); peerConns[fromId]=pc; pc.onicecandidate=({candidate})=>{if(candidate)socket.emit('webrtc:ice',{to:fromId,candidate});}; pc.ontrack=(event)=>{ const vid=document.getElementById('ssv'); if(vid.srcObject!==event.streams[0]) vid.srcObject=event.streams[0]; vid.muted=false; _showSS(); document.getElementById('sharebar').classList.add('on'); vid.play().catch(e=>{ if(e.name==='NotAllowedError') toast('Click to play video','ok'); }); }; try{ await pc.setRemoteDescription(new RTCSessionDescription(offer)); const answer=await pc.createAnswer(); await pc.setLocalDescription(answer); socket.emit('webrtc:answer',{to:fromId,answer}); }catch(e){} }
 function sendMsg(){ const inp=document.getElementById('cin'); const msg=inp.value.trim(); if(!msg||!socket)return; socket.emit('chat:send',{message:msg}); inp.value=''; }
 function _appendMsg({senderId,senderName,message,ts}){ const div=document.createElement('div'); div.className='cmsg'; const me=senderId===myId; div.innerHTML=`<div class="sndr${me?' me':''}">${escapeHtml(senderName)}${me?' (you)':''}</div><div class="txt">${escapeHtml(message)}</div><div class="ts">${new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>`; document.getElementById('cmsgs').appendChild(div); div.scrollIntoView({behavior:'smooth',block:'nearest'}); }
 function renderMembers(members){ const list=document.getElementById('mlist'); list.innerHTML=''; members.forEach(m=>{ const div=document.createElement('div'); div.className='mitem'; div.innerHTML=`<div class="mav">${(m.name||'?')[0].toUpperCase()}</div><div class="mname">${escapeHtml(m.name)}${m.id===myId?' <span style="color:var(--text2);font-size:0.75rem">(you)</span>':''}</div>${m.isHost?'<div class="mhtag">HOST</div>':''}`; list.appendChild(div);}); }
@@ -356,7 +316,6 @@ function leaveRoom(){ if(isSharing)stopShare(); if(progLoop)clearInterval(progLo
 function toast(msg,type='info'){ const el=document.createElement('div'); el.className=`toast ${type}`; el.textContent=msg; document.getElementById('toasts').appendChild(el); setTimeout(()=>el.remove(),3200); }
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toggleFullscreen(){ const el=document.getElementById('vcont'); if(!document.fullscreenElement) el.requestFullscreen().catch(e=>toast('FS error','err')); else document.exitFullscreen(); }
-document.getElementById('floatChatBtn').addEventListener('click',()=>{ document.getElementById('floatChatPanel').classList.toggle('open'); });
 document.addEventListener('click',e=>{ const sb=document.getElementById('sb'); if(sb.classList.contains('open')&&!sb.contains(e.target)&&e.target.id!=='sbtog') sb.classList.remove('open'); });
 document.getElementById('cname').addEventListener('keydown',e=>{ if(e.key==='Enter')createRoom(); });
 document.getElementById('jname').addEventListener('keydown',e=>{ if(e.key==='Enter')joinRoom(); });
