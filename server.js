@@ -1,6 +1,13 @@
 /**
- * WatchTogether — Socket.IO server
- * Matches every event used by the Flutter client exactly.
+ * WatchTogether — Socket.IO server + web client
+ *
+ * Serves the web client from public/index.html AND handles
+ * all socket events for both the Flutter app and browser clients.
+ *
+ * File structure:
+ *   server.js
+ *   public/
+ *     index.html   ← web client
  *
  * Install:  npm install express socket.io
  * Run:      node server.js
@@ -28,7 +35,15 @@ const io     = new Server(server, {
   transports: ['websocket', 'polling'],
 });
 
-app.get('/', (_req, res) => res.send('WatchTogether server running ✓'));
+const path = require('path');
+
+// Serve the web client from public/
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Fallback for any non-API route → index.html
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // ─── In-memory store ─────────────────────────────────────────────────────────
 /**
