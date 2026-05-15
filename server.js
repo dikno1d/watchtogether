@@ -1,352 +1,309 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const { v4: uuidv4 } = require("uuid");
 const path = require("path");
-const axios = require("axios");
-const cheerio = require("cheerio");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" },
-  pingInterval: 1000,
-  pingTimeout: 5000,
-  transports: ['websocket', 'polling']
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+  transports: ["websocket", "polling"],
 });
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
-// API endpoint to get video embed info
-app.post("/api/get-embed-url", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "No URL provided" });
-  
-  try {
-    const embedInfo = await getEmbedUrl(url);
-    res.json(embedInfo);
-  } catch (error) {
-    console.error("Error getting embed URL:", error);
-    res.status(500).json({ error: "Failed to get video embed URL" });
-  }
-});
+// ─── Room state ───────────────────────────────────────────────────────────────
+const rooms = new Map();
+// rooms[roomId] = {
+//   host: socketId,
+//   members: Map<socketId, { name, isHost }>,
+//   playback: { mode, src, playing, currentTime, lastSyncAt },
+//   chat: []
+// }
 
-async function getEmbedUrl(url) {
-  const urlLower = url.toLowerCase();
-  
-  // YouTube - Fix for m.youtube.com and all YouTube URLs
-  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
-    let videoId = null;
-    
-    // Handle youtu.be format
-    let match = url.match(/youtu\.be\/([^?&]+)/);
-    if (match) videoId = match[1];
-    
-    // Handle youtube.com/watch?v=
-    match = url.match(/[?&]v=([^&]+)/);
-    if (match) videoId = match[1];
-    
-    // Handle youtube.com/embed/
-    match = url.match(/\/embed\/([^?&]+)/);
-    if (match) videoId = match[1];
-    
-    // Handle m.youtube.com
-    match = url.match(/m\.youtube\.com\/watch\?v=([^&]+)/);
-    if (match) videoId = match[1];
-    
-    if (videoId) {
-      return {
-        platform: 'youtube',
-        embedUrl: `https://www.youtube.com/embed/${videoId}`,
-        videoId: videoId,
-        title: 'YouTube Video'
-      };
-    }
-  }
-  
-  // Vimeo
-  if (urlLower.includes('vimeo.com')) {
-    const match = url.match(/vimeo\.com\/(\d+)/);
-    if (match) {
-      return {
-        platform: 'vimeo',
-        embedUrl: `https://player.vimeo.com/video/${match[1]}`,
-        videoId: match[1],
-        title: 'Vimeo Video'
-      };
-    }
-  }
-  
-  // Dailymotion
-  if (urlLower.includes('dailymotion.com')) {
-    const match = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
-    if (match) {
-      return {
-        platform: 'dailymotion',
-        embedUrl: `https://www.dailymotion.com/embed/video/${match[1]}`,
-        videoId: match[1],
-        title: 'Dailymotion Video'
-      };
-    }
-  }
-  
-  // Twitch
-  if (urlLower.includes('twitch.tv')) {
-    const match = url.match(/twitch\.tv\/([^\/?]+)/);
-    if (match) {
-      return {
-        platform: 'twitch',
-        embedUrl: `https://player.twitch.tv/?channel=${match[1]}&parent=${process.env.DOMAIN || 'localhost'}`,
-        videoId: match[1],
-        title: `Twitch: ${match[1]}`
-      };
-    }
-  }
-  
-  // Facebook
-  if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch')) {
-    return {
-      platform: 'facebook',
-      embedUrl: url,
-      title: 'Facebook Video'
-    };
-  }
-  
-  // TikTok
-  if (urlLower.includes('tiktok.com')) {
-    return {
-      platform: 'tiktok',
-      embedUrl: url,
-      title: 'TikTok Video'
-    };
-  }
-  
-  // Twitter/X
-  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
-    return {
-      platform: 'twitter',
-      embedUrl: url,
-      title: 'Twitter Video'
-    };
-  }
-  
-  // Instagram
-  if (urlLower.includes('instagram.com')) {
-    return {
-      platform: 'instagram',
-      embedUrl: url,
-      title: 'Instagram Video'
-    };
-  }
-  
-  // Direct video files
-  if (url.match(/\.(mp4|webm|ogg|mov|mkv|avi)(\?|$)/i)) {
-    return {
-      platform: 'direct',
-      embedUrl: url,
-      title: 'Video File'
-    };
-  }
-  
-  // Generic embed
-  return {
-    platform: 'generic',
-    embedUrl: url,
-    title: 'Embedded Video'
-  };
+function getRoomData(roomId) {
+  return rooms.get(roomId);
 }
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+function broadcastMembers(roomId) {
+  const room = getRoomData(roomId);
+  if (!room) return;
+  const members = Array.from(room.members.entries()).map(([id, data]) => ({
+    id,
+    name: data.name,
+    isHost: data.isHost,
+  }));
+  io.to(roomId).emit("room:members", members);
+}
 
-const rooms = {};
-const COLORS = [
-  "#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF",
-  "#C77DFF", "#FF9A3C", "#00C9A7", "#F72585",
-  "#48CAE4", "#E9C46A", "#FF6B4A", "#4ECDC4"
+// ─── TURN/STUN ICE config ─────────────────────────────────────────────────────
+// Uses free public STUN servers + Metered/Open Relay TURN (free tier, no key needed)
+// For production, replace with your own Twilio/Metered TURN credentials.
+const ICE_SERVERS = [
+  // STUN servers
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "stun:stun.cloudflare.com:3478" },
+  { urls: "stun:stun.relay.metered.ca:80" },
+  // TURN servers (Open Relay - free, no key required)
+  {
+    urls: "turn:a.relay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:a.relay.metered.ca:80?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:a.relay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:a.relay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turns:a.relay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
 ];
 
-function getRoom(roomId) {
-  return rooms[roomId];
-}
+// Serve ICE config to clients
+app.get("/api/ice-servers", (req, res) => {
+  res.json({ iceServers: ICE_SERVERS });
+});
 
-function roomInfo(roomId) {
-  const room = rooms[roomId];
-  if (!room) return null;
-  return {
-    roomId,
-    host: room.host,
-    members: Array.from(room.members.entries()).map(([id, d]) => ({
-      id, name: d.name, color: d.color,
-    })),
-    videoUrl: room.videoUrl,
-    videoPlatform: room.videoPlatform,
-    isPlaying: room.isPlaying,
-    currentTime: room.currentTime
-  };
-}
-
+// ─── Socket.IO ────────────────────────────────────────────────────────────────
 io.on("connection", (socket) => {
-  console.log("✅ Connected:", socket.id);
+  console.log(`[+] Connected: ${socket.id}`);
 
-  socket.on("create_room", ({ name }, cb) => {
-    const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const color = COLORS[0];
-    
-    rooms[roomId] = {
+  // ── Create Room ──
+  socket.on("room:create", ({ name }, cb) => {
+    const roomId = uuidv4().slice(0, 6).toUpperCase();
+    const room = {
       host: socket.id,
-      members: new Map([[socket.id, { name, color }]]),
-      videoUrl: null,
-      videoPlatform: null,
-      isPlaying: false,
-      currentTime: 0,
-      lastUpdate: Date.now()
+      members: new Map(),
+      playback: {
+        mode: null, // 'youtube' | 'screenshare'
+        src: null,
+        playing: false,
+        currentTime: 0,
+        lastSyncAt: Date.now(),
+      },
+      chat: [],
     };
-    
+    room.members.set(socket.id, { name, isHost: true });
+    rooms.set(roomId, room);
+
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.name = name;
-    
-    console.log(`🏠 Room ${roomId} created by ${name}`);
-    cb({ ok: true, roomId, info: roomInfo(roomId) });
-    io.to(roomId).emit("room_update", roomInfo(roomId));
+
+    console.log(`[Room] Created ${roomId} by ${name}`);
+    cb({ success: true, roomId, isHost: true, iceServers: ICE_SERVERS });
+    broadcastMembers(roomId);
   });
 
-  socket.on("join_room", ({ roomId, name }, cb) => {
-    const room = getRoom(roomId);
-    
+  // ── Join Room ──
+  socket.on("room:join", ({ name, roomId }, cb) => {
+    const room = getRoomData(roomId);
     if (!room) {
-      return cb({ ok: false, error: "❌ Room not found" });
-    }
-    
-    if (room.members.size >= 20) {
-      return cb({ ok: false, error: "❌ Room is full (max 20 members)" });
+      return cb({ success: false, error: "Room not found" });
     }
 
-    const usedColors = new Set([...room.members.values()].map((m) => m.color));
-    const color = COLORS.find((c) => !usedColors.has(c)) || COLORS[room.members.size % COLORS.length];
-    
-    room.members.set(socket.id, { name, color });
+    room.members.set(socket.id, { name, isHost: false });
     socket.join(roomId);
     socket.data.roomId = roomId;
     socket.data.name = name;
 
-    console.log(`👤 ${name} joined ${roomId}`);
-    cb({ ok: true, roomId, info: roomInfo(roomId) });
-    
-    io.to(roomId).emit("room_update", roomInfo(roomId));
-    io.to(roomId).emit("chat_message", {
-      system: true,
-      text: `✨ ${name} joined the room`,
-      ts: Date.now()
+    // Sync current playback state to new joiner
+    const elapsed = (Date.now() - room.playback.lastSyncAt) / 1000;
+    const syncedTime = room.playback.playing
+      ? room.playback.currentTime + elapsed
+      : room.playback.currentTime;
+
+    console.log(`[Room] ${name} joined ${roomId}`);
+    cb({
+      success: true,
+      roomId,
+      isHost: false,
+      iceServers: ICE_SERVERS,
+      playback: { ...room.playback, currentTime: syncedTime },
+      hostId: room.host,
     });
-  });
 
-  socket.on("load_video", ({ videoUrl, videoPlatform }, cb) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.videoUrl = videoUrl;
-    room.videoPlatform = videoPlatform;
-    room.isPlaying = false;
-    room.currentTime = 0;
-    room.lastUpdate = Date.now();
-    
-    io.to(socket.data.roomId).emit("video_loaded", {
-      videoUrl: videoUrl,
-      videoPlatform: videoPlatform,
-      currentTime: 0,
-      isPlaying: false
+    // Notify others
+    socket.to(roomId).emit("room:user-joined", {
+      id: socket.id,
+      name,
     });
-    
-    cb({ success: true });
-    console.log(`🎬 Video loaded in ${socket.data.roomId}: ${videoPlatform}`);
+
+    broadcastMembers(roomId);
+
+    // Tell new joiner who the screen sharer is (if any)
+    if (room.playback.mode === "screenshare" && room.playback.sharerId) {
+      socket.emit("screenshare:active", { sharerId: room.playback.sharerId });
+    }
   });
 
-  socket.on("play_video", ({ currentTime }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.isPlaying = true;
-    room.currentTime = currentTime;
-    room.lastUpdate = Date.now();
-    
-    io.to(socket.data.roomId).emit("video_play", { currentTime });
-  });
-
-  socket.on("pause_video", ({ currentTime }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.isPlaying = false;
-    room.currentTime = currentTime;
-    room.lastUpdate = Date.now();
-    
-    io.to(socket.data.roomId).emit("video_pause", { currentTime });
-  });
-
-  socket.on("seek_video", ({ currentTime }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || room.host !== socket.id) return;
-    
-    room.currentTime = currentTime;
-    room.lastUpdate = Date.now();
-    
-    io.to(socket.data.roomId).emit("video_seek", { currentTime });
-  });
-
-  socket.on("chat_send", ({ text }) => {
-    const room = getRoom(socket.data.roomId);
-    if (!room || !text.trim()) return;
-    
-    const member = room.members.get(socket.id);
-    io.to(socket.data.roomId).emit("chat_message", {
-      system: false,
-      senderId: socket.id,
-      name: member?.name || "Unknown",
-      color: member?.color || "#fff",
-      text: text.trim().slice(0, 300),
-      ts: Date.now()
-    });
-  });
-
-  socket.on("disconnect", () => {
+  // ── Chat ──
+  socket.on("chat:send", ({ message }) => {
     const roomId = socket.data.roomId;
-    const room = getRoom(roomId);
+    const room = getRoomData(roomId);
     if (!room) return;
 
     const member = room.members.get(socket.id);
-    const wasHost = room.host === socket.id;
+    const msg = {
+      id: uuidv4(),
+      senderId: socket.id,
+      senderName: member?.name || "Unknown",
+      message,
+      ts: Date.now(),
+    };
+    room.chat.push(msg);
+    io.to(roomId).emit("chat:message", msg);
+  });
+
+  // ── Playback: Host controls ──
+  socket.on("playback:update", (data) => {
+    const roomId = socket.data.roomId;
+    const room = getRoomData(roomId);
+    if (!room || room.host !== socket.id) return;
+
+    Object.assign(room.playback, {
+      ...data,
+      lastSyncAt: Date.now(),
+    });
+
+    socket.to(roomId).emit("playback:sync", {
+      ...room.playback,
+    });
+  });
+
+  // ── Playback: Time sync (periodic) ──
+  socket.on("playback:time", ({ currentTime, playing }) => {
+    const roomId = socket.data.roomId;
+    const room = getRoomData(roomId);
+    if (!room || room.host !== socket.id) return;
+
+    room.playback.currentTime = currentTime;
+    room.playback.playing = playing;
+    room.playback.lastSyncAt = Date.now();
+
+    // Broadcast to viewers
+    socket.to(roomId).emit("playback:time", { currentTime, playing });
+  });
+
+  // ── WebRTC Signaling for Screen Share ──
+  socket.on("webrtc:offer", ({ to, offer }) => {
+    io.to(to).emit("webrtc:offer", { from: socket.id, offer });
+  });
+
+  socket.on("webrtc:answer", ({ to, answer }) => {
+    io.to(to).emit("webrtc:answer", { from: socket.id, answer });
+  });
+
+  socket.on("webrtc:ice-candidate", ({ to, candidate }) => {
+    io.to(to).emit("webrtc:ice-candidate", { from: socket.id, candidate });
+  });
+
+  // ── Screen Share: Start ──
+  socket.on("screenshare:start", () => {
+    const roomId = socket.data.roomId;
+    const room = getRoomData(roomId);
+    if (!room) return;
+
+    room.playback.mode = "screenshare";
+    room.playback.sharerId = socket.id;
+
+    // Tell all others to expect a WebRTC stream from this sharer
+    socket.to(roomId).emit("screenshare:active", { sharerId: socket.id });
+    console.log(
+      `[Screen] ${socket.data.name} started sharing in room ${roomId}`
+    );
+  });
+
+  // ── Screen Share: Stop ──
+  socket.on("screenshare:stop", () => {
+    const roomId = socket.data.roomId;
+    const room = getRoomData(roomId);
+    if (!room) return;
+
+    room.playback.mode = null;
+    room.playback.sharerId = null;
+
+    io.to(roomId).emit("screenshare:stopped");
+    console.log(
+      `[Screen] ${socket.data.name} stopped sharing in room ${roomId}`
+    );
+  });
+
+  // ── YouTube mode: load video ──
+  socket.on("youtube:load", ({ videoId }) => {
+    const roomId = socket.data.roomId;
+    const room = getRoomData(roomId);
+    if (!room || room.host !== socket.id) return;
+
+    room.playback.mode = "youtube";
+    room.playback.src = videoId;
+    room.playback.playing = false;
+    room.playback.currentTime = 0;
+    room.playback.lastSyncAt = Date.now();
+
+    io.to(roomId).emit("youtube:load", { videoId });
+  });
+
+  // ── Disconnect ──
+  socket.on("disconnect", () => {
+    const roomId = socket.data.roomId;
+    const room = getRoomData(roomId);
+    if (!room) return;
+
     room.members.delete(socket.id);
+    console.log(`[-] ${socket.data.name} left room ${roomId}`);
 
-    if (room.members.size === 0) {
-      delete rooms[roomId];
-      console.log(`🗑️ Room ${roomId} deleted`);
-      return;
-    }
-
-    if (wasHost) {
-      const newHostId = [...room.members.keys()][0];
+    // If host left, assign new host
+    if (room.host === socket.id && room.members.size > 0) {
+      const newHostId = room.members.keys().next().value;
       room.host = newHostId;
-      io.to(newHostId).emit("you_are_host");
-      io.to(roomId).emit("host_changed", { newHost: newHostId });
-      console.log(`👑 Host transferred to ${newHostId}`);
+      room.members.get(newHostId).isHost = true;
+      io.to(newHostId).emit("room:promoted-host");
+      io.to(roomId).emit("room:new-host", { id: newHostId });
     }
 
-    io.to(roomId).emit("room_update", roomInfo(roomId));
-    if (member) {
-      io.to(roomId).emit("chat_message", {
-        system: true,
-        text: `👋 ${member.name} left the room`,
-        ts: Date.now()
-      });
+    // If room empty, delete it
+    if (room.members.size === 0) {
+      rooms.delete(roomId);
+      console.log(`[Room] ${roomId} deleted (empty)`);
+    } else {
+      socket.to(roomId).emit("room:user-left", { id: socket.id });
+      broadcastMembers(roomId);
+
+      // If screen sharer left, notify
+      if (room.playback.sharerId === socket.id) {
+        room.playback.mode = null;
+        room.playback.sharerId = null;
+        io.to(roomId).emit("screenshare:stopped");
+      }
     }
   });
 });
 
+// ─── Start server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🎬 Universal Watch Party Server running!`);
-  console.log(`📍 http://localhost:${PORT}`);
+  console.log(`✅ WatchTogether server running on http://localhost:${PORT}`);
 });
